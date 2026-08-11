@@ -14,7 +14,176 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          pricing_type: Database["public"]["Enums"]["pricing_type"]
+          unit_price: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          unit_price?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      proposal_items: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          position: number
+          pricing_type: Database["public"]["Enums"]["pricing_type"]
+          product_id: string | null
+          proposal_id: string
+          quantity: number
+          title: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          product_id?: string | null
+          proposal_id: string
+          quantity?: number
+          title: string
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          position?: number
+          pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          product_id?: string | null
+          proposal_id?: string
+          quantity?: number
+          title?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_items_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposals: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          discount_amount: number
+          id: string
+          net_amount: number
+          notes: string | null
+          payment_terms: string | null
+          proposal_code: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["proposal_status"]
+          total_amount: number
+          validity_date: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          payment_terms?: string | null
+          proposal_code: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          total_amount?: number
+          validity_date?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          payment_terms?: string | null
+          proposal_code?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["proposal_status"]
+          total_amount?: number
+          validity_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +192,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      pricing_type: "recurring" | "one_time" | "setup"
+      proposal_status: "draft" | "sent" | "accepted" | "rejected" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +320,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      pricing_type: ["recurring", "one_time", "setup"],
+      proposal_status: ["draft", "sent", "accepted", "rejected", "expired"],
+    },
   },
 } as const

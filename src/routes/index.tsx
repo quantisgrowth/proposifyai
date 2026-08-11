@@ -77,10 +77,11 @@ function ProposalsPage() {
 
   const changeStatus = useMutation({
     mutationFn: async ({ id, next }: { id: string; next: ProposalStatus }) => {
-      const { error } = await supabase
-        .from("proposals")
-        .update({ status: next, sent_at: next === "sent" ? new Date().toISOString() : undefined })
-        .eq("id", id);
+      const patch =
+        next === "sent"
+          ? { status: next, sent_at: new Date().toISOString() }
+          : { status: next };
+      const { error } = await supabase.from("proposals").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -215,7 +216,7 @@ function ProposalsPage() {
                   <td className="px-4 py-3 text-muted-foreground">{shortDate(p.validity_date)}</td>
                   <td className="px-4 py-3">
                     <Badge variant="outline" className={`font-normal ${statusStyles[p.status]}`}>
-                      {statusLabel[p.status]}
+                      {statusLabel[p.status] ?? p.status}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -265,7 +266,7 @@ function ProposalsPage() {
                               key={s}
                               onClick={() => changeStatus.mutate({ id: p.id, next: s })}
                             >
-                              Marcar como {statusLabel[s].toLowerCase()}
+                              Marcar como {(statusLabel[s] ?? s).toLowerCase()}
                             </DropdownMenuItem>
                           ))}
                       </DropdownMenuContent>

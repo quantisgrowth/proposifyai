@@ -3,7 +3,7 @@ import { brl, longDate, pricingLabel } from "@/lib/format";
 
 export type DocItem = {
   title: string;
-  description?: string | null;
+  description?: string | null | undefined;
   pricing_type: PricingType;
   quantity: number;
   unit_price: number;
@@ -13,17 +13,17 @@ export type DocItem = {
 export type DocData = {
   code: string;
   clientName: string;
-  clientDocument?: string | null;
-  contactName?: string | null;
-  email?: string | null;
-  phone?: string | null;
+  clientDocument?: string | null | undefined;
+  contactName?: string | null | undefined;
+  email?: string | null | undefined;
+  phone?: string | null | undefined;
   items: DocItem[];
   total: number;
   discount: number;
   net: number;
-  validityDate?: string | null;
-  paymentTerms?: string | null;
-  notes?: string | null;
+  validityDate?: string | null | undefined;
+  paymentTerms?: string | null | undefined;
+  notes?: string | null | undefined;
 };
 
 export function ProposalDocument({ data }: { data: DocData }) {
@@ -94,7 +94,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
                     ) : null}
                   </td>
                   <td className="py-3 text-center text-xs text-muted-foreground">
-                    {pricingLabel[item.pricing_type]}
+                    {pricingLabel[item.pricing_type] ?? item.pricing_type}
                   </td>
                   <td className="py-3 text-center tabular-nums">{item.quantity}</td>
                   <td className="py-3 text-right tabular-nums">{brl(item.unit_price)}</td>

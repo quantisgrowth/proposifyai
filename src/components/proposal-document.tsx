@@ -71,8 +71,8 @@ export function ProposalDocument({ data }: { data: DocData }) {
               <th className="pb-2 font-normal">Serviço</th>
               <th className="pb-2 text-center font-normal">Tipo</th>
               <th className="pb-2 text-center font-normal">Qtd.</th>
-              <th className="pb-2 text-right font-normal">Unitário</th>
-              <th className="pb-2 text-right font-normal">Total</th>
+              <th className="pb-2 pl-6 text-right font-normal">Unitário</th>
+              <th className="pb-2 pl-6 text-right font-normal">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -97,8 +97,8 @@ export function ProposalDocument({ data }: { data: DocData }) {
                     {pricingLabel[item.pricing_type] ?? item.pricing_type}
                   </td>
                   <td className="py-3 text-center tabular-nums">{item.quantity}</td>
-                  <td className="py-3 text-right tabular-nums">{brl(item.unit_price)}</td>
-                  <td className="py-3 text-right tabular-nums">{brl(item.total_price)}</td>
+                  <td className="py-3 pl-6 text-right tabular-nums whitespace-nowrap">{brl(item.unit_price)}</td>
+                  <td className="py-3 pl-6 text-right tabular-nums whitespace-nowrap">{brl(item.total_price)}</td>
                 </tr>
               ))
             )}

@@ -10,33 +10,73 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as NovaRouteImport } from './routes/nova'
+import { Route as ProdutosRouteImport } from './routes/produtos'
+import { Route as PropostaCodeRouteImport } from './routes/proposta.$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NovaRoute = NovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProdutosRoute = ProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PropostaCodeRoute = PropostaCodeRouteImport.update({
+  id: '/proposta/$code',
+  path: '/proposta/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/nova': typeof NovaRoute
+  '/produtos': typeof ProdutosRoute
+  '/proposta/$code': typeof PropostaCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/nova': typeof NovaRoute
+  '/produtos': typeof ProdutosRoute
+  '/proposta/$code': typeof PropostaCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/nova': typeof NovaRoute
+  '/produtos': typeof ProdutosRoute
+  '/proposta/$code': typeof PropostaCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
+  id: '__root__' | '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClientesRoute: typeof ClientesRoute
+  NovaRoute: typeof NovaRoute
+  ProdutosRoute: typeof ProdutosRoute
+  PropostaCodeRoute: typeof PropostaCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +88,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nova': {
+      id: '/nova'
+      path: '/nova'
+      fullPath: '/nova'
+      preLoaderRoute: typeof NovaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/produtos': {
+      id: '/produtos'
+      path: '/produtos'
+      fullPath: '/produtos'
+      preLoaderRoute: typeof ProdutosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proposta/$code': {
+      id: '/proposta/$code'
+      path: '/proposta/$code'
+      fullPath: '/proposta/$code'
+      preLoaderRoute: typeof PropostaCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClientesRoute: ClientesRoute,
+  NovaRoute: NovaRoute,
+  ProdutosRoute: ProdutosRoute,
+  PropostaCodeRoute: PropostaCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

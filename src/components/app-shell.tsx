@@ -11,6 +11,7 @@ const tabs = [
   { to: "/nova", label: "Nova Proposta" },
   { to: "/produtos", label: "Produtos/Serviços" },
   { to: "/clientes", label: "Clientes" },
+  { to: "/admin", label: "Admin" },
 ] as const;
 
 function Metrics() {

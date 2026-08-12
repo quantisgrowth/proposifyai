@@ -77,3 +77,20 @@ export const COMPANY = {
   phone: "(11) 4000-2200",
   document: "CNPJ 40.221.884/0001-32",
 };
+
+export type CompanySettings = Database["public"]["Tables"]["company_settings"]["Row"];
+
+export const companySettingsQuery = {
+  queryKey: ["company_settings"],
+  retry: false,
+  queryFn: async (): Promise<CompanySettings | null> => {
+    const { data, error } = await supabase
+      .from("company_settings")
+      .select("*")
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+};

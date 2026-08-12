@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="grid size-7 shrink-0 place-items-center rounded-sm bg-primary text-[11px] font-semibold text-primary-foreground">
               M
             </span>
-            <span className="truncate text-sm font-medium tracking-tight">Meridian Propostas</span>
+            <span className="truncate text-sm font-medium tracking-tight">Proposify AI</span>
           </Link>
           <nav className="flex items-center gap-1 overflow-x-auto">
             {tabs.map((tab) => (

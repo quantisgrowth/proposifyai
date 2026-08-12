@@ -79,13 +79,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Meridian — Propostas Comerciais" },
+      { title: "Proposify AI — Propostas Comerciais" },
       {
         name: "description",
         content:
           "Crie, envie e acompanhe propostas comerciais elegantes em minutos, com catálogo de serviços e documento pronto para PDF.",
       },
-      { property: "og:title", content: "Meridian — Propostas Comerciais" },
+      { property: "og:title", content: "Proposify AI — Propostas Comerciais" },
       {
         property: "og:description",
         content: "Gerador de propostas comerciais minimalista para times de vendas.",

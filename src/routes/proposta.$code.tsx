@@ -18,12 +18,12 @@ export const Route = createFileRoute("/proposta/$code")({
   }),
   head: ({ params }) => ({
     meta: [
-      { title: `Proposta ${params.code} — Meridian` },
+      { title: `Proposta ${params.code} — Proposify AI` },
       {
         name: "description",
         content: `Documento da proposta comercial ${params.code}: escopo, valores, validade e aceite.`,
       },
-      { property: "og:title", content: `Proposta ${params.code} — Meridian` },
+      { property: "og:title", content: `Proposta ${params.code} — Proposify AI` },
       {
         property: "og:description",
         content: "Proposta comercial pronta para leitura, impressão e aceite.",

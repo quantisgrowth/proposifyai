@@ -23,13 +23,13 @@ import { brl, pricingLabel } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/produtos")({
   head: () => ({
     meta: [
-      { title: "Produtos e serviços — Meridian Propostas Comerciais" },
+      { title: "Produtos e serviços — Proposify AI — Propostas Comerciais" },
       {
         name: "description",
         content:
           "Catálogo de produtos e serviços com preço unitário e tipo de cobrança recorrente, pontual ou setup.",
       },
-      { property: "og:title", content: "Produtos e serviços — Meridian" },
+      { property: "og:title", content: "Produtos e serviços — Proposify AI" },
       {
         property: "og:description",
         content: "Catálogo comercial usado para montar propostas em segundos.",

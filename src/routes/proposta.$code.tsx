@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ProposalDocument } from "@/components/proposal-document";
+import { supabase } from "@/integrations/supabase/client";
 import { proposalByCodeQuery } from "@/lib/proposals";
+import { getPublicProposal } from "@/lib/public-proposal.functions";
 
 type Search = { print?: boolean };
 
@@ -35,7 +37,14 @@ function ProposalView() {
   const { code } = Route.useParams();
   const { print } = Route.useSearch();
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery(proposalByCodeQuery(code));
+  const { data, isLoading } = useQuery({
+    queryKey: ["proposal-view", code],
+    queryFn: async () => {
+      const { data: session } = await supabase.auth.getSession();
+      if (session.session) return proposalByCodeQuery(code).queryFn();
+      return getPublicProposal({ data: code });
+    },
+  });
 
   useEffect(() => {
     if (print && data) {

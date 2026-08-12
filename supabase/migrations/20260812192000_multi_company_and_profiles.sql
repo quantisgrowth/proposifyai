@@ -86,15 +86,42 @@ SELECT
 FROM auth.users
 ON CONFLICT (id) DO UPDATE SET role = 'admin';
 
--- 5. GRANTS & RLS
+-- 5. GRANTS & RLS (Acesso Anon & Autenticado)
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proposal_items ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON public.companies TO authenticated, service_role;
 GRANT ALL ON public.profiles TO authenticated, service_role;
+GRANT ALL ON public.products TO authenticated, service_role;
+GRANT ALL ON public.clients TO authenticated, service_role;
+GRANT ALL ON public.proposals TO authenticated, service_role;
+GRANT ALL ON public.proposal_items TO authenticated, service_role;
+
+GRANT SELECT ON public.companies TO anon;
+GRANT SELECT ON public.profiles TO anon;
+GRANT SELECT ON public.products TO anon;
+GRANT SELECT ON public.clients TO anon;
+GRANT SELECT ON public.proposals TO anon;
+GRANT SELECT ON public.proposal_items TO anon;
 
 DROP POLICY IF EXISTS "companies_access" ON public.companies;
-CREATE POLICY "companies_access" ON public.companies FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "companies_access" ON public.companies FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "profiles_access" ON public.profiles;
-CREATE POLICY "profiles_access" ON public.profiles FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "profiles_access" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "products_access" ON public.products;
+CREATE POLICY "products_access" ON public.products FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "clients_access" ON public.clients;
+CREATE POLICY "clients_access" ON public.clients FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "proposals_access" ON public.proposals;
+CREATE POLICY "proposals_access" ON public.proposals FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "proposal_items_access" ON public.proposal_items;
+CREATE POLICY "proposal_items_access" ON public.proposal_items FOR ALL USING (true) WITH CHECK (true);

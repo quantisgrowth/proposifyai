@@ -4,17 +4,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Building2,
-  Package,
   Trash2,
   Users,
   UserPlus,
-  Shield,
   UserCheck,
-  Plus,
   Edit2,
-  KeyRound,
   Search,
-  CheckCircle2,
+  Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -22,8 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -44,14 +39,10 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   companiesQuery,
   profilesQuery,
-  productsQuery,
   type Company,
   type Profile,
-  type Product,
-  type PricingType,
   type UserRole,
 } from "@/lib/proposals";
-import { brl, pricingLabel } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -60,14 +51,12 @@ export const Route = createFileRoute("/_authenticated/admin")({
       {
         name: "description",
         content:
-          "Gestão global de colaboradores, empresas clientes e catálogo de serviços.",
+          "Gestão global de colaboradores, empresas clientes e configurações corporativas.",
       },
     ],
   }),
   component: AdminPage,
 });
-
-const pricingTypes: PricingType[] = ["recurring", "one_time", "setup", "usage_based"];
 
 /* =========================================================================
    1. ABA COLABORADORES (Listagem Full-Width + Modal de Cadastro/Edição)
@@ -404,7 +393,7 @@ function CollaboratorsTab() {
 }
 
 /* =========================================================================
-   2. ABA EMPRESAS (Listagem Full-Width + Modal de Cadastro/Edição)
+   2. ABA EMPRESAS (Listagem Full-Width + Modal com Logo & Rodapé)
    ========================================================================= */
 
 const emptyCompany = {
@@ -413,6 +402,11 @@ const emptyCompany = {
   email: "",
   phone: "",
   document: "",
+  logo_url: "",
+  footer_text: "",
+  solution_name: "",
+  fidelity_policy: "",
+  next_steps_text: "",
   default_validity_days: 15,
   default_payment_terms: "Pix",
 };
@@ -439,6 +433,11 @@ function CompaniesTab() {
       email: c.email,
       phone: c.phone,
       document: c.document,
+      logo_url: c.logo_url ?? "",
+      footer_text: c.footer_text ?? "",
+      solution_name: c.solution_name ?? "",
+      fidelity_policy: c.fidelity_policy ?? "",
+      next_steps_text: c.next_steps_text ?? "",
       default_validity_days: c.default_validity_days,
       default_payment_terms: c.default_payment_terms,
     });
@@ -448,11 +447,26 @@ function CompaniesTab() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe a razão social da empresa");
+      const payload = {
+        name: form.name.trim(),
+        tagline: form.tagline.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        document: form.document.trim(),
+        logo_url: form.logo_url?.trim() || null,
+        footer_text: form.footer_text?.trim() || null,
+        solution_name: form.solution_name?.trim() || null,
+        fidelity_policy: form.fidelity_policy?.trim() || null,
+        next_steps_text: form.next_steps_text?.trim() || null,
+        default_validity_days: form.default_validity_days,
+        default_payment_terms: form.default_payment_terms,
+      };
+
       if (editing) {
-        const { error } = await supabase.from("companies").update(form).eq("id", editing.id);
+        const { error } = await supabase.from("companies").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("companies").insert(form);
+        const { error } = await supabase.from("companies").insert(payload);
         if (error) throw error;
       }
     },
@@ -491,18 +505,36 @@ function CompaniesTab() {
         {(companies ?? []).map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between p-4 hover:bg-secondary/40 transition-colors cursor-pointer"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-secondary/40 transition-colors cursor-pointer"
             onClick={() => openEditModal(c)}
           >
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground hover:underline truncate">{c.name}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {c.document} · {c.email} · {c.phone}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{c.tagline}</p>
+            <div className="flex items-center gap-3.5 min-w-0">
+              {c.logo_url ? (
+                <img
+                  src={c.logo_url}
+                  alt={c.name}
+                  className="size-11 object-contain rounded-lg border border-border bg-white p-1"
+                />
+              ) : (
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-base font-bold text-primary">
+                  {c.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground hover:underline truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {c.document} · {c.email} · {c.phone}
+                </p>
+                {c.footer_text ? (
+                  <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                    Rodapé: {c.footer_text}
+                  </p>
+                ) : null}
+              </div>
             </div>
+
             <div
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 self-end sm:self-center"
               onClick={(e) => e.stopPropagation()}
             >
               <Button
@@ -532,45 +564,70 @@ function CompaniesTab() {
         )}
       </div>
 
-      {/* MODAL: Empresa */}
+      {/* MODAL: Empresa (com Logo, Rodapé e Textos) */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="size-5 text-primary" />
-              {editing ? "Editar Empresa" : "Nova Empresa"}
+              {editing ? "Editar Empresa & Identidade" : "Nova Empresa"}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Configurações da empresa exibidas nas propostas comerciais geradas.
+              Defina a logo, dados cadastrais e as informações padrão de rodapé e proposta.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 py-2">
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Razão Social / Nome</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: Frotlog Logística S/A"
-              />
+          <div className="space-y-4 py-2">
+            {/* Seção 1: Identidade Visual e Logo */}
+            <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="size-3.5 text-primary" /> Logo da Empresa (Cabeçalho da Proposta)
+              </Label>
+              <div className="flex items-center gap-3">
+                {form.logo_url ? (
+                  <img
+                    src={form.logo_url}
+                    alt="Logo Preview"
+                    className="h-12 max-w-[140px] object-contain rounded border border-border bg-white p-1"
+                  />
+                ) : (
+                  <div className="flex h-12 w-28 items-center justify-center rounded border border-dashed border-border text-[11px] text-muted-foreground">
+                    Sem Logo
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    value={form.logo_url}
+                    onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                    placeholder="URL da imagem (ex: https://.../logo.png ou SVG)"
+                    className="text-xs"
+                  />
+                </div>
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Slogan / Tagline</Label>
-              <Input
-                value={form.tagline}
-                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-                placeholder="Ex: Gestão e Mobilidade Inteligente"
-              />
+
+            {/* Seção 2: Dados Básicos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Razão Social / Nome da Empresa</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: Frotlog Soluções em Carga e Descarga LTDA"
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">CNPJ</Label>
+                <Input
+                  value={form.document}
+                  onChange={(e) => setForm({ ...form, document: e.target.value })}
+                  placeholder="CNPJ 53.968.073/0001-38"
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">CNPJ / Documento</Label>
-              <Input
-                value={form.document}
-                onChange={(e) => setForm({ ...form, document: e.target.value })}
-                placeholder="CNPJ 00.000.000/0001-00"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">E-mail Comercial</Label>
                 <Input
@@ -584,10 +641,67 @@ function CompaniesTab() {
                 <Input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="(11) 99999-9999"
+                  placeholder="(11) 4000-2200"
                 />
               </div>
             </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Slogan / Tagline</Label>
+              <Input
+                value={form.tagline}
+                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                placeholder="Ex: Gestão e Mobilidade Inteligente"
+              />
+            </div>
+
+            {/* Seção 3: Rodapé e Textos Padrão da Proposta */}
+            <div className="rounded-lg border border-border bg-secondary/10 p-4 space-y-3">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <FileText className="size-3.5 text-primary" /> Rodapé e Textos da Proposta Comercial
+              </Label>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Texto do Rodapé Oficial da Empresa (Impresso em cada página)
+                </Label>
+                <Input
+                  value={form.footer_text}
+                  onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
+                  placeholder="Ex: © 2026 Frotlog Soluções em Carga e Descarga LTDA — CNPJ: 53.968.073/0001-38"
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Nome da Solução Comercial Padrão</Label>
+                <Input
+                  value={form.solution_name}
+                  onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
+                  placeholder="Ex: Frotlog - Plataforma SaaS de Gestão e Pagamento de Despesas em Rota"
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Política de Fidelidade Padrão</Label>
+                <Textarea
+                  rows={2}
+                  value={form.fidelity_policy}
+                  onChange={(e) => setForm({ ...form, fidelity_policy: e.target.value })}
+                  placeholder="A nossa única fidelidade é a sua satisfação com a nossa ferramenta..."
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Próximos Passos para Ativação Padrão</Label>
+                <Textarea
+                  rows={3}
+                  value={form.next_steps_text}
+                  onChange={(e) => setForm({ ...form, next_steps_text: e.target.value })}
+                  placeholder="1. Validação e aceite...\n2. Reunião de alinhamento..."
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Validade Padrão (dias)</Label>
@@ -609,7 +723,7 @@ function CompaniesTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Pix", "Boleto", "Cartão de Crédito", "Parcelado"].map((t) => (
+                    {["Pix", "Boleto", "Cartão de Crédito", "Parcelado", "Transacional"].map((t) => (
                       <SelectItem key={t} value={t}>
                         {t}
                       </SelectItem>
@@ -635,285 +749,6 @@ function CompaniesTab() {
 }
 
 /* =========================================================================
-   3. ABA CATÁLOGO (Produtos/Serviços Full-Width + Modal)
-   ========================================================================= */
-
-const emptyProduct = {
-  name: "",
-  description: "",
-  unit_price: 0,
-  pricing_type: "usage_based" as PricingType,
-  company_id: "",
-};
-
-function CatalogTab() {
-  const qc = useQueryClient();
-  const { data: companies } = useQuery(companiesQuery);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("all");
-  const { data: products } = useQuery(
-    productsQuery(selectedCompanyId === "all" ? null : selectedCompanyId)
-  );
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState(emptyProduct);
-
-  const openCreateModal = () => {
-    setEditing(null);
-    setForm({
-      ...emptyProduct,
-      company_id: selectedCompanyId !== "all" ? selectedCompanyId : (companies?.[0]?.id ?? ""),
-    });
-    setModalOpen(true);
-  };
-
-  const openEditModal = (p: Product) => {
-    setEditing(p);
-    setForm({
-      name: p.name,
-      description: p.description ?? "",
-      unit_price: Number(p.unit_price),
-      pricing_type: p.pricing_type,
-      company_id: p.company_id ?? "",
-    });
-    setModalOpen(true);
-  };
-
-  const save = useMutation({
-    mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("Informe o nome do serviço");
-      const payload = {
-        ...form,
-        company_id: form.company_id || (companies?.[0]?.id ?? null),
-      };
-      if (editing) {
-        const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("products").insert(payload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
-      toast.success(editing ? "Serviço atualizado" : "Serviço adicionado");
-      setModalOpen(false);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const toggle = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase.from("products").update({ active }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
-  });
-
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Serviço removido");
-    },
-    onError: () =>
-      toast.error("Não foi possível remover: o serviço está em uso em alguma proposta."),
-  });
-
-  return (
-    <div className="space-y-4">
-      {/* Filtro por empresa e Botão Novo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            Filtrar por Empresa:
-          </Label>
-          <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-            <SelectTrigger className="w-[220px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as Empresas</SelectItem>
-              {(companies ?? []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button onClick={openCreateModal} className="gap-2 h-10">
-          <Package className="size-4" /> Novo Serviço / Produto
-        </Button>
-      </div>
-
-      {/* Lista Full-Width */}
-      <div className="divide-y divide-border rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        {(products ?? []).map((p) => (
-          <div
-            key={p.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-secondary/40 transition-colors cursor-pointer"
-            onClick={() => openEditModal(p)}
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-foreground hover:underline truncate">{p.name}</p>
-                <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {pricingLabel[p.pricing_type] ?? p.pricing_type}
-                </span>
-              </div>
-              <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                {p.description || "Sem descrição detalhada."}
-              </p>
-            </div>
-
-            <div
-              className="flex items-center gap-4 self-end sm:self-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="tabular-nums font-bold text-base text-foreground whitespace-nowrap">
-                {brl(Number(p.unit_price))}
-              </span>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={p.active}
-                  onCheckedChange={(active) => toggle.mutate({ id: p.id, active })}
-                  title={p.active ? "Ativo" : "Inativo"}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => openEditModal(p)}
-                >
-                  <Edit2 className="size-3.5" /> Editar
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => remove.mutate(p.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {(products ?? []).length === 0 && (
-          <div className="p-12 text-center text-sm text-muted-foreground">
-            Nenhum serviço encontrado no catálogo desta empresa.
-          </div>
-        )}
-      </div>
-
-      {/* MODAL: Produto / Serviço */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Package className="size-5 text-primary" />
-              {editing ? "Editar Serviço / Produto" : "Novo Serviço / Produto"}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Cadastre itens no catálogo para seleção rápida ao montar propostas.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3.5 py-2">
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Nome do Serviço</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: Transação / Emissão"
-              />
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Vincular a Empresa</Label>
-              <Select
-                value={form.company_id}
-                onValueChange={(val) => setForm({ ...form, company_id: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(companies ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Descrição</Label>
-              <Textarea
-                rows={3}
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Ex: Valor correspondente a cada transação processada..."
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Preço Unitário (R$)</Label>
-                <CurrencyInput
-                  value={form.unit_price}
-                  onChange={(val) => setForm({ ...form, unit_price: val })}
-                  placeholder="R$ 0,00"
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Tipo de Cobrança</Label>
-                <Select
-                  value={form.pricing_type}
-                  onValueChange={(v) => setForm({ ...form, pricing_type: v as PricingType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pricingTypes.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {pricingLabel[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2 pt-3">
-              <Button variant="outline" onClick={() => setModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={() => save.mutate()} disabled={save.isPending}>
-                {save.isPending
-                  ? "Salvando..."
-                  : editing
-                  ? "Salvar Alterações"
-                  : "Adicionar ao Catálogo"}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-/* =========================================================================
    PÁGINA PRINCIPAL ADMIN
    ========================================================================= */
 
@@ -926,21 +761,18 @@ function AdminPage() {
             Central do Administrador
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gestão global de colaboradores, empresas clientes e catálogos de serviços.
+            Gestão global de colaboradores, empresas clientes e configurações corporativas.
           </p>
         </div>
       </div>
 
       <Tabs defaultValue="colaboradores" className="mt-6">
-        <TabsList className="grid grid-cols-3 max-w-md">
+        <TabsList className="grid grid-cols-2 max-w-xs">
           <TabsTrigger value="colaboradores" className="gap-2 text-xs">
             <Users className="size-4" /> Colaboradores
           </TabsTrigger>
           <TabsTrigger value="empresas" className="gap-2 text-xs">
             <Building2 className="size-4" /> Empresas
-          </TabsTrigger>
-          <TabsTrigger value="catalogo" className="gap-2 text-xs">
-            <Package className="size-4" /> Catálogo
           </TabsTrigger>
         </TabsList>
 
@@ -949,9 +781,6 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="empresas" className="mt-6">
           <CompaniesTab />
-        </TabsContent>
-        <TabsContent value="catalogo" className="mt-6">
-          <CatalogTab />
         </TabsContent>
       </Tabs>
     </AppShell>

@@ -29,7 +29,7 @@ import { useAuth } from "@/lib/auth-context";
 const allNavItems = [
   { to: "/", label: "Propostas", icon: FileText, exact: true, adminOnly: false },
   { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true, adminOnly: false },
-  { to: "/produtos", label: "Produtos / Serviços", icon: Package, adminOnly: false },
+  { to: "/produtos", label: "Catálogo de Produtos", icon: Package, adminOnly: false },
   { to: "/clientes", label: "Clientes", icon: Users, adminOnly: false },
   { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal, adminOnly: true },
 ] as const;
@@ -57,6 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const companyDisplayName = company?.name || "Proposify AI";
+  const companyLogo = company?.logo_url;
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col justify-between p-4 sm:p-5">
@@ -64,9 +65,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div>
         <div className="flex items-center justify-between pb-5 pt-1">
           <Link to="/" className="group flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-            <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105">
-              <Sparkles className="size-4 text-primary-foreground" />
-            </div>
+            {companyLogo ? (
+              <img
+                src={companyLogo}
+                alt={companyDisplayName}
+                className="h-8 max-w-[100px] object-contain rounded bg-white p-0.5"
+              />
+            ) : (
+              <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105">
+                <Sparkles className="size-4 text-primary-foreground" />
+              </div>
+            )}
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="truncate font-semibold tracking-tight text-foreground">{companyDisplayName}</span>

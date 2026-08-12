@@ -11,6 +11,13 @@ export type Company = {
   document: string;
   email: string;
   phone: string;
+  logo_url?: string | null;
+  footer_text?: string | null;
+  solution_name?: string | null;
+  objective_text?: string | null;
+  scope_text?: string | null;
+  fidelity_policy?: string | null;
+  next_steps_text?: string | null;
   default_validity_days: number;
   default_payment_terms: string;
   created_at: string;
@@ -57,6 +64,12 @@ export type Proposal = {
   client_id: string | null;
   company_id?: string | null;
   created_by?: string | null;
+  campaign_name?: string | null;
+  solution_name?: string | null;
+  objective_text?: string | null;
+  scope_text?: string | null;
+  fidelity_policy?: string | null;
+  next_steps_text?: string | null;
   total_amount: number;
   discount_amount: number;
   net_amount: number;
@@ -77,6 +90,8 @@ export type ProposalItem = {
   pricing_type: PricingType;
   quantity: number;
   unit_price: number;
+  original_price?: number | null;
+  is_included?: boolean;
   total_price: number;
   position: number;
   created_at: string;

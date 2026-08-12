@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { proposalsQuery } from "@/lib/proposals";
 import { brl } from "@/lib/format";
 
@@ -62,6 +63,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {tab.label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/auth";
+              }}
+              className="whitespace-nowrap rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"
+            >
+              Sair
+            </button>
           </nav>
         </div>
       </div>

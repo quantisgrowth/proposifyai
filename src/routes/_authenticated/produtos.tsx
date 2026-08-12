@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { Package, Plus, Edit2, Trash2 } from "lucide-react";
+import { Package, Plus, Edit2, Trash2, Search, Building2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,12 @@ import {
 } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
-import { productsQuery, type PricingType, type Product } from "@/lib/proposals";
+import {
+  productsQuery,
+  companiesQuery,
+  type PricingType,
+  type Product,
+} from "@/lib/proposals";
 import { brl, pricingLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 
@@ -52,21 +57,41 @@ const emptyProduct = {
   description: "",
   unit_price: 0,
   pricing_type: "usage_based" as PricingType,
+  company_id: "",
 };
 
 function ProductsPage() {
   const qc = useQueryClient();
-  const { profile, company } = useAuth();
-  const companyId = profile?.company_id || company?.id || null;
+  const { profile, company, isAdmin } = useAuth();
+  const { data: companies } = useQuery(companiesQuery);
 
-  const { data: products, isLoading } = useQuery(productsQuery(companyId));
+  // Se for admin, permite selecionar qualquer empresa ou "all"
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
+    return profile?.company_id ?? "all";
+  });
+
+  const activeCompanyFilter = isAdmin
+    ? selectedCompanyId === "all"
+      ? null
+      : selectedCompanyId
+    : profile?.company_id || company?.id || null;
+
+  const { data: products, isLoading } = useQuery(productsQuery(activeCompanyFilter));
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyProduct);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const openCreateModal = () => {
     setEditing(null);
-    setForm(emptyProduct);
+    setForm({
+      ...emptyProduct,
+      company_id:
+        selectedCompanyId !== "all"
+          ? selectedCompanyId
+          : profile?.company_id ?? (companies?.[0]?.id ?? ""),
+    });
     setModalOpen(true);
   };
 
@@ -77,6 +102,7 @@ function ProductsPage() {
       description: p.description ?? "",
       unit_price: Number(p.unit_price),
       pricing_type: p.pricing_type,
+      company_id: p.company_id ?? (profile?.company_id ?? ""),
     });
     setModalOpen(true);
   };
@@ -84,10 +110,15 @@ function ProductsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe o nome do serviço");
+      const targetCompanyId = form.company_id || profile?.company_id || (companies?.[0]?.id ?? null);
       const payload = {
-        ...form,
-        company_id: companyId,
+        name: form.name.trim(),
+        description: form.description?.trim() || null,
+        unit_price: form.unit_price,
+        pricing_type: form.pricing_type,
+        company_id: targetCompanyId,
       };
+
       if (editing) {
         const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -125,6 +156,17 @@ function ProductsPage() {
       toast.error("Não foi possível remover: o serviço está em uso em alguma proposta."),
   });
 
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    return (products ?? []).filter((p) => {
+      if (!term) return true;
+      return (
+        p.name.toLowerCase().includes(term) ||
+        (p.description ?? "").toLowerCase().includes(term)
+      );
+    });
+  }, [products, searchTerm]);
+
   return (
     <AppShell>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
@@ -133,7 +175,7 @@ function ProductsPage() {
             Catálogo de Produtos & Serviços
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Catálogo comercial da sua empresa usado para montar propostas em segundos.
+            Catálogo comercial usado para montar propostas em segundos.
           </p>
         </div>
         <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0">
@@ -141,64 +183,108 @@ function ProductsPage() {
         </Button>
       </div>
 
-      <div className="mt-6 divide-y divide-border rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-        {(products ?? []).map((p) => (
-          <div
-            key={p.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-secondary/40 transition-colors cursor-pointer"
-            onClick={() => openEditModal(p)}
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-foreground hover:underline truncate">{p.name}</p>
-                <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {pricingLabel[p.pricing_type] ?? p.pricing_type}
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-                {p.description || "Sem descrição detalhada."}
-              </p>
-            </div>
+      {/* Barra de Filtros & Busca */}
+      <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produto ou serviço..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-10 text-sm"
+          />
+        </div>
 
-            <div
-              className="flex items-center gap-4 self-end sm:self-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="tabular-nums font-bold text-base text-foreground whitespace-nowrap">
-                {brl(Number(p.unit_price))}
-              </span>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={p.active}
-                  onCheckedChange={(active) => toggle.mutate({ id: p.id, active })}
-                  title={p.active ? "Ativo" : "Inativo"}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1.5 text-xs"
-                  onClick={() => openEditModal(p)}
-                >
-                  <Edit2 className="size-3.5" /> Editar
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => remove.mutate(p.id)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </div>
+        {isAdmin ? (
+          <div className="flex items-center gap-2.5">
+            <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+              Filtrar por Empresa:
+            </Label>
+            <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+              <SelectTrigger className="w-[200px] h-10 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Empresas</SelectItem>
+                {(companies ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ))}
+        ) : null}
+      </div>
 
-        {(products ?? []).length === 0 && (
+      {/* Lista de Produtos */}
+      <div className="mt-4 divide-y divide-border rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        {filteredProducts.map((p) => {
+          const comp = companies?.find((c) => c.id === p.company_id);
+          return (
+            <div
+              key={p.id}
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-secondary/40 transition-colors cursor-pointer"
+              onClick={() => openEditModal(p)}
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-foreground hover:underline truncate">{p.name}</p>
+                  <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {pricingLabel[p.pricing_type] ?? p.pricing_type}
+                  </span>
+                  {comp && isAdmin && selectedCompanyId === "all" ? (
+                    <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      <Building2 className="size-3" />
+                      {comp.name}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+                  {p.description || "Sem descrição detalhada."}
+                </p>
+              </div>
+
+              <div
+                className="flex items-center gap-4 self-end sm:self-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="tabular-nums font-bold text-base text-foreground whitespace-nowrap">
+                  {brl(Number(p.unit_price))}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={p.active}
+                    onCheckedChange={(active) => toggle.mutate({ id: p.id, active })}
+                    title={p.active ? "Ativo" : "Inativo"}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 text-xs"
+                    onClick={() => openEditModal(p)}
+                  >
+                    <Edit2 className="size-3.5" /> Editar
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => remove.mutate(p.id)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredProducts.length === 0 && (
           <div className="p-12 text-center text-sm text-muted-foreground">
             {isLoading
               ? "Carregando catálogo..."
-              : "Nenhum produto cadastrado para sua empresa."}
+              : "Nenhum produto encontrado para o filtro selecionado."}
           </div>
         )}
       </div>
@@ -209,7 +295,7 @@ function ProductsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Package className="size-5 text-primary" />
-              {editing ? "Editar Serviço" : "Novo Serviço / Produto"}
+              {editing ? "Editar Serviço / Produto" : "Novo Serviço / Produto"}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Cadastre itens no catálogo para seleção rápida ao montar propostas.
@@ -225,6 +311,27 @@ function ProductsPage() {
                 placeholder="Ex: Transação / Emissão"
               />
             </div>
+
+            {isAdmin ? (
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Vincular a Empresa</Label>
+                <Select
+                  value={form.company_id}
+                  onValueChange={(val) => setForm({ ...form, company_id: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(companies ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Descrição</Label>

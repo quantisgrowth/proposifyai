@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { companySettingsQuery, type PricingType, type Company } from "@/lib/proposals";
+import {
+  companySettingsQuery,
+  type PricingType,
+  type PricingTier,
+  type Company,
+} from "@/lib/proposals";
 import { brl, longDate, pricingLabel } from "@/lib/format";
-import { CheckCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle, ShieldCheck, BarChart3 } from "lucide-react";
 
 export type DocItem = {
   title: string;
@@ -10,6 +15,10 @@ export type DocItem = {
   quantity: number;
   unit_price: number;
   original_price?: number | null | undefined;
+  min_price?: number | null | undefined;
+  max_price?: number | null | undefined;
+  pricing_tiers?: PricingTier[] | null | undefined;
+  pricing_tier_notes?: string | null | undefined;
   is_included?: boolean;
   total_price: number;
 };
@@ -61,22 +70,27 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
   const defaultScopeItems = [
     {
-      title: "Aplicativo Móvel & Acesso do Usuário",
-      desc: "Permite a realização de operações e pagamentos em tempo real de qualquer lugar.",
+      title: "Aplicativo para Motoristas & Gestores",
+      desc: "Permite a realização e o registro imediato de operações e pagamentos essenciais em rota.",
     },
     {
       title: "Painel de Gestão em Tempo Real",
-      desc: "Visualização e acompanhamento instantâneo de cada transação e indicador.",
+      desc: "Visualização e acompanhamento instantâneo de cada transação realizada pelo time de rua.",
     },
     {
       title: "Filtros Avançados e Relatórios",
-      desc: "Capacidade de auditar e exportar dados consolidados em múltiplos formatos.",
+      desc: "Capacidade de auditar e exportar os gastos organizados por categorias de despesa, rotas e períodos.",
     },
     {
       title: "Usuários Ilimitados",
-      desc: "Total liberdade para cadastrar quantos colaboradores forem necessários, sem taxas ocultas por licença.",
+      desc: "Total liberdade para cadastrar quantos motoristas e gestores forem necessários, sem custos adicionais.",
     },
   ];
+
+  // Identificar se há itens com tabela de faixas por volume
+  const itemsWithTiers = data.items.filter(
+    (i) => Array.isArray(i.pricing_tiers) && i.pricing_tiers.length > 0
+  );
 
   const nextSteps = data.nextStepsText
     ? data.nextStepsText.split("\n").filter((l) => l.trim())
@@ -176,14 +190,60 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </div>
       </section>
 
-      {/* 5. SEÇÃO 3: CONDIÇÕES COMERCIAIS & TABELA DE PRECIFICAÇÃO */}
+      {/* 5. SEÇÃO 3: TABELA DE PRECIFICAÇÃO POR PERFORMANCE / FAIXAS DE VOLUME (SE HOUVER) */}
+      {itemsWithTiers.length > 0 && (
+        <section className="space-y-4 pt-4 border-t border-slate-200">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <BarChart3 className="size-5 text-primary" /> 3. Modelo de Precificação por Performance (Padrão)
+          </h2>
+          <p className="text-sm text-slate-700">
+            A monetização do sistema dar-se-á por meio de performance transacional. A tabela é
+            regressiva e calculada de forma consolidada ao final de cada período, baseando-se no
+            volume total de movimentações:
+          </p>
+
+          {itemsWithTiers.map((item, idx) => (
+            <div key={idx} className="space-y-2">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider font-semibold">
+                    <tr>
+                      <th className="p-3.5 pl-4">Faixa de Volume (Transações/Mês)</th>
+                      <th className="p-3.5 pr-4 text-right">Valor por Transação Realizada</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(item.pricing_tiers ?? []).map((tier, tIdx) => (
+                      <tr key={tIdx} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3.5 pl-4 font-medium text-slate-900">{tier.range}</td>
+                        <td className="p-3.5 pr-4 text-right tabular-nums font-bold text-slate-900">
+                          {brl(tier.price)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {item.pricing_tier_notes ? (
+                <p className="text-xs text-slate-500 italic pl-1">
+                  {item.pricing_tier_notes}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* 6. SEÇÃO 4: CONDIÇÕES COMERCIAIS ESPECIAIS (TABELA DE ITENS) */}
       <section className="space-y-4 pt-4 border-t border-slate-200">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          3. Condições Comerciais Especiais ({campaignName})
+          {itemsWithTiers.length > 0 ? "4." : "3."} Condições Comerciais Especiais ({campaignName})
         </h2>
         <p className="text-sm text-slate-700">
-          Estruturamos uma oferta especial com condições exclusivas e barreira de entrada
-          otimizada para o início das operações:
+          Como benefício por nossa parceria durante a campanha <strong>{campaignName}</strong>,
+          estruturamos uma oferta especial com condições exclusivas e barreira de entrada
+          otimizada:
         </p>
 
         {/* Tabela de Condições Comerciais */}
@@ -274,10 +334,10 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </div>
       </section>
 
-      {/* 6. SEÇÃO 4: PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
+      {/* 7. SEÇÃO 5: PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
       <section className="space-y-4 pt-4 border-t border-slate-200">
         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          4. Próximos Passos para Ativação
+          {itemsWithTiers.length > 0 ? "5." : "4."} Próximos Passos para Ativação
         </h2>
         <div className="space-y-2.5">
           {nextSteps.map((step, idx) => {
@@ -294,7 +354,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </div>
       </section>
 
-      {/* 7. VALIDADE E ACEITE */}
+      {/* 8. VALIDADE E ACEITE */}
       <section className="grid gap-6 border-t border-slate-200 pt-6 text-xs text-slate-600 sm:grid-cols-2">
         <div>
           <p className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">
@@ -312,7 +372,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </div>
       </section>
 
-      {/* 8. RODAPÉ OFICIAL DA EMPRESA (INDIVIDUAL) */}
+      {/* 9. RODAPÉ OFICIAL DA EMPRESA (INDIVIDUAL) */}
       <footer className="border-t border-slate-200 pt-6 text-center text-xs text-slate-500">
         <p className="font-medium">{companyFooter}</p>
       </footer>

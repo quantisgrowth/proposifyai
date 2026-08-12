@@ -47,11 +47,20 @@ export type Client = {
   created_at: string;
 };
 
+export type PricingTier = {
+  range: string;
+  price: number;
+};
+
 export type Product = {
   id: string;
   name: string;
   description: string | null;
   unit_price: number;
+  min_price?: number | null;
+  max_price?: number | null;
+  pricing_tiers?: PricingTier[] | null;
+  pricing_tier_notes?: string | null;
   pricing_type: PricingType;
   active: boolean;
   company_id?: string | null;
@@ -91,6 +100,10 @@ export type ProposalItem = {
   quantity: number;
   unit_price: number;
   original_price?: number | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  pricing_tiers?: PricingTier[] | null;
+  pricing_tier_notes?: string | null;
   is_included?: boolean;
   total_price: number;
   position: number;

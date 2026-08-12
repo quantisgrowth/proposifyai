@@ -1,7 +1,19 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Plus, Trash2, Sparkles, Tag, Layers } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Plus,
+  Trash2,
+  Sparkles,
+  Tag,
+  Layers,
+  Building2,
+  AlertTriangle,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -23,9 +35,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   clientsQuery,
   productsQuery,
+  companiesQuery,
   proposalByCodeQuery,
   type PricingType,
-  type Proposal,
+  type PricingTier,
+  type Company,
 } from "@/lib/proposals";
 import { brl, pricingLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
@@ -57,9 +71,16 @@ type LineItem = {
   description: string;
   pricing_type: PricingType;
   quantity: number;
-  unit_price: number;
-  original_price?: number | null;
-  is_included?: boolean;
+  base_price: number; // Preço de tabela / referência
+  unit_price: number; // Preço final praticado / especial
+  original_price?: number | null; // Para exibir riscado
+  min_price?: number | null;
+  max_price?: number | null;
+  pricing_tiers?: PricingTier[] | null;
+  pricing_tier_notes?: string | null;
+  item_adjustment_mode: "none" | "discount_percent" | "discount_fixed" | "surcharge_percent" | "surcharge_fixed";
+  item_adjustment_val: number;
+  is_included: boolean;
 };
 
 const emptyItem = (): LineItem => ({
@@ -68,8 +89,15 @@ const emptyItem = (): LineItem => ({
   description: "",
   pricing_type: "usage_based",
   quantity: 1,
+  base_price: 0,
   unit_price: 0,
   original_price: null,
+  min_price: null,
+  max_price: null,
+  pricing_tiers: null,
+  pricing_tier_notes: null,
+  item_adjustment_mode: "none",
+  item_adjustment_val: 0,
   is_included: false,
 });
 
@@ -83,11 +111,29 @@ function NewProposalPage() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/_authenticated/nova" });
   const qc = useQueryClient();
-  const { profile, company } = useAuth();
-  const companyId = profile?.company_id || company?.id || null;
+  const { profile, company: userCompany, isAdmin } = useAuth();
+  const { data: companies } = useQuery(companiesQuery);
 
-  const { data: clients } = useQuery(clientsQuery(companyId));
-  const { data: products } = useQuery(productsQuery(companyId));
+  // Se for admin, permite selecionar a Empresa Emissora da Proposta
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
+    return profile?.company_id ?? "";
+  });
+
+  // Atualizar quando os dados da empresa chegarem
+  useEffect(() => {
+    if (!selectedCompanyId && companies && companies.length > 0) {
+      const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
+      setSelectedCompanyId(profile?.company_id || defaultComp.id);
+    }
+  }, [companies, profile, selectedCompanyId]);
+
+  const activeCompanyId = isAdmin ? selectedCompanyId : profile?.company_id || userCompany?.id || null;
+  const activeCompany = useMemo(() => {
+    return companies?.find((c) => c.id === activeCompanyId) ?? userCompany ?? null;
+  }, [companies, activeCompanyId, userCompany]);
+
+  const { data: clients } = useQuery(clientsQuery(activeCompanyId));
+  const { data: products } = useQuery(productsQuery(activeCompanyId));
   const { data: editing } = useQuery({
     ...proposalByCodeQuery(search.edit ?? ""),
     enabled: Boolean(search.edit),
@@ -103,34 +149,38 @@ function NewProposalPage() {
   });
   const [creatingClient, setCreatingClient] = useState(false);
 
-  // Metadados da Proposta Frotlog
-  const [campaignName, setCampaignName] = useState("Condições Exclusivas - Feira Transporte do Futuro");
-  const [solutionName, setSolutionName] = useState(
-    company?.solution_name || "Frotlog - Plataforma SaaS de Gestão e Pagamento de Despesas em Rota"
-  );
-  const [objectiveText, setObjectiveText] = useState(company?.objective_text ?? "");
-  const [fidelityPolicy, setFidelityPolicy] = useState(company?.fidelity_policy ?? "");
-  const [nextStepsText, setNextStepsText] = useState(company?.next_steps_text ?? "");
+  // Metadados da Proposta
+  const [campaignName, setCampaignName] = useState("Condições Exclusivas");
+  const [solutionName, setSolutionName] = useState("");
+  const [objectiveText, setObjectiveText] = useState("");
+  const [fidelityPolicy, setFidelityPolicy] = useState("");
+  const [nextStepsText, setNextStepsText] = useState("");
 
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
   const [discountMode, setDiscountMode] = useState<"percent" | "fixed">("percent");
   const [discountValue, setDiscountValue] = useState(0);
   const [validity, setValidity] = useState(addDays(15));
-  const [paymentTerms, setPaymentTerms] = useState(company?.default_payment_terms || "Pix");
+  const [paymentTerms, setPaymentTerms] = useState("Pix");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Quando a empresa ativa muda, preenche os dados padrão se não estiver editando
   useEffect(() => {
-    if (company?.solution_name && !editing) {
-      setSolutionName(company.solution_name);
+    if (activeCompany && !editing) {
+      if (activeCompany.solution_name) setSolutionName(activeCompany.solution_name);
+      if (activeCompany.objective_text) setObjectiveText(activeCompany.objective_text);
+      if (activeCompany.fidelity_policy) setFidelityPolicy(activeCompany.fidelity_policy);
+      if (activeCompany.next_steps_text) setNextStepsText(activeCompany.next_steps_text);
+      if (activeCompany.default_payment_terms) setPaymentTerms(activeCompany.default_payment_terms);
     }
-  }, [company, editing]);
+  }, [activeCompany, editing]);
 
   useEffect(() => {
     if (!editing) return;
     setClientId(editing.client_id ?? "");
+    if (editing.company_id) setSelectedCompanyId(editing.company_id);
     setCampaignName(editing.campaign_name || "Condições Exclusivas");
-    setSolutionName(editing.solution_name || company?.solution_name || "");
+    setSolutionName(editing.solution_name || activeCompany?.solution_name || "");
     setObjectiveText(editing.objective_text || "");
     setFidelityPolicy(editing.fidelity_policy || "");
     setNextStepsText(editing.next_steps_text || "");
@@ -142,8 +192,15 @@ function NewProposalPage() {
         description: i.description ?? "",
         pricing_type: i.pricing_type,
         quantity: Number(i.quantity),
+        base_price: Number(i.unit_price),
         unit_price: Number(i.unit_price),
         original_price: i.original_price ? Number(i.original_price) : null,
+        min_price: (i as any).min_price ? Number((i as any).min_price) : null,
+        max_price: (i as any).max_price ? Number((i as any).max_price) : null,
+        pricing_tiers: (i as any).pricing_tiers || null,
+        pricing_tier_notes: (i as any).pricing_tier_notes || null,
+        item_adjustment_mode: "none",
+        item_adjustment_val: 0,
         is_included: i.is_included ?? false,
       })),
     );
@@ -152,7 +209,7 @@ function NewProposalPage() {
     setValidity(editing.validity_date ?? addDays(15));
     setPaymentTerms(editing.payment_terms ?? "Pix");
     setNotes(editing.notes ?? "");
-  }, [editing, company]);
+  }, [editing, activeCompany]);
 
   const selectedClient = useMemo(
     () => (clients ?? []).find((c) => c.id === clientId) ?? null,
@@ -173,24 +230,70 @@ function NewProposalPage() {
       quantity: i.quantity,
       unit_price: i.unit_price,
       original_price: i.original_price,
+      min_price: i.min_price,
+      max_price: i.max_price,
+      pricing_tiers: i.pricing_tiers,
+      pricing_tier_notes: i.pricing_tier_notes,
       is_included: i.is_included,
       total_price: i.quantity * i.unit_price,
     }));
 
-  const updateItem = (key: string, patch: Partial<LineItem>) =>
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
+  const updateItem = (key: string, patch: Partial<LineItem>) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.key !== key) return item;
+        const updated = { ...item, ...patch };
+
+        // Recalcular preço com base no modo de desconto/acréscimo do item se aplicável
+        if (patch.item_adjustment_mode !== undefined || patch.item_adjustment_val !== undefined) {
+          const base = updated.base_price || updated.unit_price;
+          let calculated = base;
+          const val = updated.item_adjustment_val || 0;
+
+          if (updated.item_adjustment_mode === "discount_percent") {
+            calculated = Math.max(0, base - (base * val) / 100);
+            updated.original_price = base;
+          } else if (updated.item_adjustment_mode === "discount_fixed") {
+            calculated = Math.max(0, base - val);
+            updated.original_price = base;
+          } else if (updated.item_adjustment_mode === "surcharge_percent") {
+            calculated = base + (base * val) / 100;
+            updated.original_price = base;
+          } else if (updated.item_adjustment_mode === "surcharge_fixed") {
+            calculated = base + val;
+            updated.original_price = base;
+          } else {
+            calculated = base;
+          }
+
+          updated.unit_price = calculated;
+        }
+
+        return updated;
+      })
+    );
+  };
 
   const applyProduct = (key: string, productId: string) => {
     const product = (products ?? []).find((p) => p.id === productId);
     if (!product) return;
+    const price = Number(product.unit_price) || 0;
+
     updateItem(key, {
       product_id: product.id,
       title: product.name,
       description: product.description ?? "",
       pricing_type: product.pricing_type,
-      unit_price: Number(product.unit_price),
+      base_price: price,
+      unit_price: price,
       original_price: null,
-      is_included: Number(product.unit_price) === 0,
+      min_price: product.min_price ? Number(product.min_price) : null,
+      max_price: product.max_price ? Number(product.max_price) : null,
+      pricing_tiers: product.pricing_tiers || null,
+      pricing_tier_notes: product.pricing_tier_notes || null,
+      item_adjustment_mode: "none",
+      item_adjustment_val: 0,
+      is_included: price === 0,
     });
   };
 
@@ -201,7 +304,7 @@ function NewProposalPage() {
     }
     const { data, error } = await supabase
       .from("clients")
-      .insert({ ...newClient, company_id: companyId })
+      .insert({ ...newClient, company_id: activeCompanyId })
       .select("*")
       .single();
 
@@ -229,7 +332,7 @@ function NewProposalPage() {
     try {
       const payload = {
         client_id: clientId,
-        company_id: companyId,
+        company_id: activeCompanyId,
         created_by: profile?.id ?? null,
         campaign_name: campaignName.trim(),
         solution_name: solutionName.trim(),
@@ -291,16 +394,41 @@ function NewProposalPage() {
 
   const form = (
     <div className="space-y-8">
-      {/* PASSO 1: CLIENTE E CAMPANHA */}
+      {/* PASSO 1: CLIENTE, EMPRESA EMISSORA E CAMPANHA */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
             1
           </span>
-          <h2 className="text-lg font-semibold">Cliente & Metadados da Proposta</h2>
+          <h2 className="text-lg font-semibold">Cliente & Empresa Emissora</h2>
         </div>
 
         <div className="grid gap-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+          {/* Seletor de Empresa Emissora para Administradores */}
+          {isAdmin && (companies ?? []).length > 0 ? (
+            <div className="grid gap-1.5 pb-3 border-b border-border bg-secondary/15 p-3 rounded-lg">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Building2 className="size-3.5 text-primary" /> Empresa Emissora da Proposta
+              </Label>
+              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                <SelectTrigger className="text-xs bg-background">
+                  <SelectValue placeholder="Selecione a empresa emissora" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(companies ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} {c.document ? `(${c.document})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Carrega o catálogo, logo e regras da empresa selecionada.
+              </p>
+            </div>
+          ) : null}
+
+          {/* Seletor de Cliente */}
           <div className="flex items-center justify-between">
             <Label className="text-xs font-medium text-muted-foreground">Cliente Destinatário</Label>
             <Button
@@ -336,7 +464,7 @@ function NewProposalPage() {
                 <Input
                   value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                  placeholder="Ex: Transportadora Rápida LTDA"
+                  placeholder="Ex: Transportadora Fadel LTDA"
                 />
               </div>
               <div className="grid gap-1.5">
@@ -406,7 +534,7 @@ function NewProposalPage() {
         </div>
       </section>
 
-      {/* PASSO 2: ESCOPO E TABELA DE PREÇOS */}
+      {/* PASSO 2: ESCOPO, PRODUTOS E REGRAS DE PREÇO */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
@@ -416,121 +544,187 @@ function NewProposalPage() {
         </div>
 
         <div className="space-y-4">
-          {items.map((item, index) => (
-            <div key={item.key} className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
-                  <Select
-                    value={item.product_id ?? ""}
-                    onValueChange={(v) => applyProduct(item.key, v)}
+          {items.map((item, index) => {
+            const hasMinViolation = item.min_price && item.unit_price < item.min_price;
+            const hasMaxViolation = item.max_price && item.unit_price > item.max_price;
+
+            return (
+              <div key={item.key} className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+                {/* Seleção de Produto no Catálogo */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <Select
+                      value={item.product_id ?? ""}
+                      onValueChange={(v) => applyProduct(item.key, v)}
+                    >
+                      <SelectTrigger className="text-xs">
+                        <SelectValue placeholder={`Item ${index + 1} — Puxar do catálogo (${(products ?? []).length} disponíveis)`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(products ?? [])
+                          .filter((p) => p.active)
+                          .map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} · {brl(Number(p.unit_price))} ({pricingLabel[p.pricing_type]})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => setItems((prev) => prev.filter((i) => i.key !== item.key))}
                   >
-                    <SelectTrigger className="text-xs">
-                      <SelectValue placeholder={`Item ${index + 1} — Selecionar do catálogo`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(products ?? [])
-                        .filter((p) => p.active)
-                        .map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} · {brl(Number(p.unit_price))} ({pricingLabel[p.pricing_type]})
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label className="text-xs">Nome do Item / Serviço</Label>
+                    <Input
+                      value={item.title}
+                      onChange={(e) => updateItem(item.key, { title: e.target.value })}
+                      placeholder="Ex: Transação (Pagamento)"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5 sm:col-span-2">
+                    <Label className="text-xs">Descrição do Item</Label>
+                    <Textarea
+                      rows={2}
+                      value={item.description}
+                      onChange={(e) => updateItem(item.key, { description: e.target.value })}
+                      placeholder="Detalhes ou escopo específico deste item..."
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs">Tipo de Cobrança</Label>
+                    <Select
+                      value={item.pricing_type}
+                      onValueChange={(v) => updateItem(item.key, { pricing_type: v as PricingType })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["recurring", "one_time", "setup", "usage_based"] as PricingType[]).map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {pricingLabel[t]}
                           </SelectItem>
                         ))}
-                    </SelectContent>
-                  </Select>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs">Qtd. / Transações</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateItem(item.key, { quantity: Number(e.target.value) || 1 })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-semibold text-foreground">Condição Especial (R$)</Label>
+                      <CurrencyInput
+                        value={item.unit_price}
+                        onChange={(val) => updateItem(item.key, { unit_price: val })}
+                        placeholder="R$ 0,00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Alertas de Violação de Limites de Preço */}
+                  {hasMinViolation ? (
+                    <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-medium">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      <span>
+                        Atenção: O valor de <strong>{brl(item.unit_price)}</strong> está abaixo do piso mínimo permitido de <strong>{brl(item.min_price!)}</strong>.
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {hasMaxViolation ? (
+                    <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 text-xs font-medium">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      <span>
+                        Atenção: O valor de <strong>{brl(item.unit_price)}</strong> ultrapassa o teto máximo permitido de <strong>{brl(item.max_price!)}</strong>.
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {/* Desconto ou Acréscimo no Item */}
+                  <div className="grid gap-2 sm:col-span-2 bg-secondary/20 p-3 rounded-lg border border-border">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-primary" /> Ajuste Comercial no Item (Desconto / Acréscimo)
+                      </Label>
+                      {item.min_price || item.max_price ? (
+                        <span className="text-[10px] text-muted-foreground">
+                          Limites: Mín {item.min_price ? brl(item.min_price) : "—"} · Máx {item.max_price ? brl(item.max_price) : "—"}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2 items-center pt-1">
+                      <Select
+                        value={item.item_adjustment_mode}
+                        onValueChange={(v) =>
+                          updateItem(item.key, { item_adjustment_mode: v as any })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem ajuste no item</SelectItem>
+                          <SelectItem value="discount_percent">Desconto (%)</SelectItem>
+                          <SelectItem value="discount_fixed">Desconto (R$)</SelectItem>
+                          <SelectItem value="surcharge_percent">Acréscimo (%)</SelectItem>
+                          <SelectItem value="surcharge_fixed">Acréscimo (R$)</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {item.item_adjustment_mode !== "none" ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={item.item_adjustment_val || ""}
+                            onChange={(e) =>
+                              updateItem(item.key, { item_adjustment_val: Number(e.target.value) || 0 })
+                            }
+                            placeholder={item.item_adjustment_mode.includes("percent") ? "Ex: 10%" : "Ex: R$ 1,50"}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      ) : null}
+
+                      {/* Preço de Tabela Original para Risco */}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Preço Tabela:</Label>
+                        <CurrencyInput
+                          value={item.original_price ?? (item.item_adjustment_mode !== "none" ? item.base_price : 0)}
+                          onChange={(val) => updateItem(item.key, { original_price: val || null })}
+                          placeholder="Ex: R$ 5,00"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
-                  onClick={() => setItems((prev) => prev.filter((i) => i.key !== item.key))}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
               </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-1.5 sm:col-span-2">
-                  <Label className="text-xs">Nome do Item / Serviço</Label>
-                  <Input
-                    value={item.title}
-                    onChange={(e) => updateItem(item.key, { title: e.target.value })}
-                    placeholder="Ex: Taxa de Setup (Implantação & Onboarding)"
-                  />
-                </div>
-
-                <div className="grid gap-1.5 sm:col-span-2">
-                  <Label className="text-xs">Descrição do Item</Label>
-                  <Textarea
-                    rows={2}
-                    value={item.description}
-                    onChange={(e) => updateItem(item.key, { description: e.target.value })}
-                    placeholder="Detalhes ou escopo específico deste item..."
-                  />
-                </div>
-
-                <div className="grid gap-1.5">
-                  <Label className="text-xs">Tipo de Cobrança</Label>
-                  <Select
-                    value={item.pricing_type}
-                    onValueChange={(v) => updateItem(item.key, { pricing_type: v as PricingType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(["recurring", "one_time", "setup", "usage_based"] as PricingType[]).map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {pricingLabel[t]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Qtd. / Transações</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateItem(item.key, { quantity: Number(e.target.value) || 1 })
-                      }
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs">Condição Especial (R$)</Label>
-                    <CurrencyInput
-                      value={item.unit_price}
-                      onChange={(val) => updateItem(item.key, { unit_price: val })}
-                      placeholder="R$ 0,00"
-                    />
-                  </div>
-                </div>
-
-                {/* Preço de Tabela Riscado (Condição Especial) */}
-                <div className="grid gap-1.5 sm:col-span-2 bg-secondary/20 p-3 rounded-lg border border-border">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Sparkles className="size-3.5 text-amber-500" /> Preço de Tabela Original (Opcional - para exibir riscado)
-                  </Label>
-                  <div className="flex items-center gap-3">
-                    <CurrencyInput
-                      value={item.original_price ?? 0}
-                      onChange={(val) => updateItem(item.key, { original_price: val || null })}
-                      placeholder="Ex: R$ 2.500,00"
-                      className="max-w-[200px]"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {item.original_price && item.original_price > item.unit_price
-                        ? `Aparecerá riscado como: ${brl(item.original_price)} ➔ ${brl(item.unit_price)}`
-                        : "Informe um valor maior para destacar o desconto na tabela"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           <Button
             type="button"
@@ -542,11 +736,11 @@ function NewProposalPage() {
             <Plus className="size-4" /> Adicionar Item ao Escopo
           </Button>
 
-          {/* Desconto Global */}
+          {/* Desconto Global Adicional */}
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:items-end sm:gap-4">
               <div className="grid min-w-0 gap-1.5 flex-1">
-                <Label className="text-xs">Desconto Global Adicional</Label>
+                <Label className="text-xs">Desconto Global Adicional (no Total da Proposta)</Label>
                 <Input
                   type="number"
                   min={0}
@@ -579,7 +773,7 @@ function NewProposalPage() {
               </div>
               {discount > 0 ? (
                 <div className="flex justify-between text-emerald-500 font-medium">
-                  <span>Desconto Total</span>
+                  <span>Desconto Global</span>
                   <span className="tabular-nums">− {brl(discount)}</span>
                 </div>
               ) : null}
@@ -683,7 +877,7 @@ function NewProposalPage() {
         validityDate: validity,
         paymentTerms,
         notes,
-        company,
+        company: activeCompany,
       }}
     />
   );

@@ -14,13 +14,13 @@ import { shortDate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
-      { title: "Clientes — Meridian Propostas Comerciais" },
+      { title: "Clientes — Proposify AI" },
       {
         name: "description",
         content:
           "Base de clientes com razão social, CNPJ/CPF, contato, e-mail e telefone para preencher propostas em segundos.",
       },
-      { property: "og:title", content: "Clientes — Meridian" },
+      { property: "og:title", content: "Clientes — Proposify AI" },
       {
         property: "og:description",
         content: "Cadastro de clientes usado nas propostas comerciais.",

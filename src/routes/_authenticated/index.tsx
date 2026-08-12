@@ -27,13 +27,13 @@ import { brl, shortDate, statusLabel } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "Propostas — Meridian Propostas Comerciais" },
+      { title: "Propostas — Proposify AI" },
       {
         name: "description",
         content:
           "Acompanhe todas as propostas comerciais, valores, validade e status em um painel único e minimalista.",
       },
-      { property: "og:title", content: "Propostas — Meridian Propostas Comerciais" },
+      { property: "og:title", content: "Propostas — Proposify AI" },
       {
         property: "og:description",
         content: "Painel de propostas comerciais com status, valores e validade.",

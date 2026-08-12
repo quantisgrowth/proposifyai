@@ -71,7 +71,7 @@ export async function nextProposalCode() {
 }
 
 export const COMPANY = {
-  name: "Meridian Partners",
+  name: "Proposify AI",
   tagline: "Estratégia, tecnologia e crescimento",
   email: "comercial@meridian.partners",
   phone: "(11) 4000-2200",

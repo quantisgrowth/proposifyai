@@ -35,13 +35,13 @@ export const Route = createFileRoute("/_authenticated/nova")({
     typeof search['code'] === "string" ? { code: search['code'] } : {},
   head: () => ({
     meta: [
-      { title: "Nova proposta — Meridian Propostas Comerciais" },
+      { title: "Nova proposta — Proposify AI" },
       {
         name: "description",
         content:
           "Monte uma proposta comercial em três passos: cliente, escopo de serviços e condições, com pré-visualização em tempo real.",
       },
-      { property: "og:title", content: "Nova proposta — Meridian" },
+      { property: "og:title", content: "Nova proposta — Proposify AI" },
       {
         property: "og:description",
         content: "Construtor de propostas com catálogo de serviços e pré-visualização ao vivo.",

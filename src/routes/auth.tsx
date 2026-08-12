@@ -11,13 +11,13 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Entrar — Meridian Propostas Comerciais" },
+      { title: "Entrar — Proposify AI" },
       {
         name: "description",
         content:
-          "Acesso restrito da equipe comercial Meridian para criar e gerenciar propostas, clientes e catálogo.",
+          "Acesso restrito da equipe comercial Proposify AI para criar e gerenciar propostas, clientes e catálogo.",
       },
-      { property: "og:title", content: "Entrar — Meridian Propostas" },
+      { property: "og:title", content: "Entrar — Proposify AI" },
       {
         property: "og:description",
         content: "Área da equipe comercial: propostas, clientes e catálogo.",
@@ -69,7 +69,7 @@ function AuthPage() {
   return (
     <div className="grid min-h-screen place-items-center bg-background px-4">
       <div className="w-full max-w-sm border border-border bg-card p-6">
-        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Meridian</p>
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Proposify AI</p>
         <h1 className="mt-2 text-2xl font-medium tracking-tight">Área da equipe</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Entre para acessar propostas, clientes e catálogo.

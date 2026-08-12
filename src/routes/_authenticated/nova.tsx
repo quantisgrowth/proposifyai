@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/nova")({
     typeof search['code'] === "string" ? { code: search['code'] } : {},
   head: () => ({
     meta: [
-      { title: "Nova proposta — Proposify AI — Propostas Comerciais" },
+      { title: "Nova proposta — Proposify AI" },
       {
         name: "description",
         content:

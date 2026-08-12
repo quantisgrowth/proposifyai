@@ -11,7 +11,7 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Entrar — Proposify AI — Propostas Comerciais" },
+      { title: "Entrar — Proposify AI" },
       {
         name: "description",
         content:

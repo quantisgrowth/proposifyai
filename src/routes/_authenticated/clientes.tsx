@@ -14,7 +14,7 @@ import { shortDate } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
-      { title: "Clientes — Proposify AI — Propostas Comerciais" },
+      { title: "Clientes — Proposify AI" },
       {
         name: "description",
         content:

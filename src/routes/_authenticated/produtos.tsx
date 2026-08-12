@@ -23,7 +23,7 @@ import { brl, pricingLabel } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/produtos")({
   head: () => ({
     meta: [
-      { title: "Produtos e serviços — Proposify AI — Propostas Comerciais" },
+      { title: "Produtos e serviços — Proposify AI" },
       {
         name: "description",
         content:

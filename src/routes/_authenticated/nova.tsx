@@ -30,7 +30,7 @@ import { brl, pricingLabel } from "@/lib/format";
 
 type Search = { code?: string };
 
-export const Route = createFileRoute("/nova")({
+export const Route = createFileRoute("/_authenticated/nova")({
   validateSearch: (search: Record<string, unknown>): Search =>
     typeof search['code'] === "string" ? { code: search['code'] } : {},
   head: () => ({

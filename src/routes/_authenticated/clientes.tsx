@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { clientsQuery } from "@/lib/proposals";
 import { shortDate } from "@/lib/format";
 
-export const Route = createFileRoute("/clientes")({
+export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
     meta: [
       { title: "Clientes — Meridian Propostas Comerciais" },

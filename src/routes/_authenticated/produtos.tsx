@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { productsQuery, type PricingType } from "@/lib/proposals";
 import { brl, pricingLabel } from "@/lib/format";
 
-export const Route = createFileRoute("/produtos")({
+export const Route = createFileRoute("/_authenticated/produtos")({
   head: () => ({
     meta: [
       { title: "Produtos e serviços — Meridian Propostas Comerciais" },

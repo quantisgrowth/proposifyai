@@ -1,4 +1,6 @@
-import { COMPANY, type PricingType } from "@/lib/proposals";
+import { useQuery } from "@tanstack/react-query";
+
+import { COMPANY, companySettingsQuery, type PricingType } from "@/lib/proposals";
 import { brl, longDate, pricingLabel } from "@/lib/format";
 
 export type DocItem = {
@@ -27,6 +29,8 @@ export type DocData = {
 };
 
 export function ProposalDocument({ data }: { data: DocData }) {
+  const { data: settings } = useQuery(companySettingsQuery);
+  const company = settings ?? COMPANY;
   const recurring = data.items
     .filter((i) => i.pricing_type === "recurring")
     .reduce((s, i) => s + i.total_price, 0);
@@ -35,10 +39,10 @@ export function ProposalDocument({ data }: { data: DocData }) {
     <article className="print-sheet mx-auto w-full max-w-3xl border border-border bg-card p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-12">
       <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-8">
         <div className="min-w-0">
-          <p className="font-serif text-2xl tracking-tight">{COMPANY.name}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{COMPANY.tagline}</p>
+          <p className="font-serif text-2xl tracking-tight">{company.name}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{company.tagline}</p>
           <p className="mt-3 text-xs text-muted-foreground">
-            {COMPANY.document} · {COMPANY.email} · {COMPANY.phone}
+            {company.document} · {company.email} · {company.phone}
           </p>
         </div>
         <div className="text-right">
@@ -158,7 +162,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
             {data.contactName || "Cliente"} — {data.clientName || ""}
           </div>
           <div className="border-t border-foreground/30 pt-2 text-xs text-muted-foreground">
-            {COMPANY.name}
+            {company.name}
           </div>
         </div>
       </section>

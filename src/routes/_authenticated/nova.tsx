@@ -37,6 +37,7 @@ import {
   productsQuery,
   companiesQuery,
   proposalByCodeQuery,
+  nextProposalCode,
   type PricingType,
   type PricingTier,
   type Company,
@@ -356,7 +357,12 @@ function NewProposalPage() {
         const { error } = await supabase.from("proposals").update(payload).eq("id", proposalId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("proposals").insert(payload).select("*").single();
+        const code = await nextProposalCode();
+        const { data, error } = await supabase
+          .from("proposals")
+          .insert({ ...payload, proposal_code: code })
+          .select("*")
+          .single();
         if (error) throw error;
         proposalId = data.id;
         proposalCode = data.proposal_code;
@@ -385,7 +391,11 @@ function NewProposalPage() {
       toast.success(status === "sent" ? "Proposta enviada!" : "Rascunho salvo!");
       navigate({ to: `/proposta/${proposalCode}` });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao salvar proposta.";
+      console.error("Erro detalhado ao salvar proposta:", err);
+      const msg =
+        (err as any)?.message ||
+        (err as any)?.error_description ||
+        (err instanceof Error ? err.message : "Erro ao salvar proposta.");
       toast.error(msg);
     } finally {
       setSaving(false);

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type PricingType = "recurring" | "one_time" | "setup";
+export type PricingType = "recurring" | "one_time" | "setup" | "usage_based";
 export type ProposalStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
 export type UserRole = "admin" | "colaborador";
 

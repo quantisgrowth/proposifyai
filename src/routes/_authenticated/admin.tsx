@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -58,7 +59,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
-const pricingTypes: PricingType[] = ["recurring", "one_time", "setup"];
+const pricingTypes: PricingType[] = ["recurring", "one_time", "setup", "usage_based"];
 
 function Section({
   title,
@@ -735,7 +736,7 @@ function CatalogTab() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Field>
-            <Field label="Empresa Responsável">
+            <Field label="Vincular a Empresa">
               <Select
                 value={form.company_id}
                 onValueChange={(val) => setForm({ ...form, company_id: val })}
@@ -760,11 +761,10 @@ function CatalogTab() {
               />
             </Field>
             <Field label="Preço Unitário (R$)">
-              <Input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={form.unit_price}
-                onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) || 0 })}
+                onChange={(val) => setForm({ ...form, unit_price: val })}
+                placeholder="R$ 0,00"
               />
             </Field>
             <Field label="Tipo de Cobrança">

@@ -1,5 +1,8 @@
 -- Migration: Multi-company architecture, profiles and role-based access
 
+-- 0. ADICIONAR TIPO DE COBRANÇA POR DEMANDA
+ALTER TYPE public.pricing_type ADD VALUE IF NOT EXISTS 'usage_based';
+
 -- 1. COMPANIES TABLE
 CREATE TABLE IF NOT EXISTS public.companies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

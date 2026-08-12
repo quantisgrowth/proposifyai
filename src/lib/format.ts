@@ -1,6 +1,9 @@
 export const brl = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 
+export const usd = (value: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
+
 export const shortDate = (value?: string | null) => {
   if (!value) return "—";
   const d = new Date(value.length <= 10 ? `${value}T12:00:00` : value);
@@ -16,9 +19,10 @@ export const longDate = (value?: string | null) => {
 };
 
 export const pricingLabel: Record<string, string> = {
-  recurring: "Recorrente",
+  recurring: "Recorrente (mensal)",
   one_time: "Pontual",
   setup: "Setup",
+  usage_based: "Por demanda",
 };
 
 export const statusLabel: Record<string, string> = {

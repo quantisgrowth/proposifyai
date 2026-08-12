@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { productsQuery, type PricingType } from "@/lib/proposals";
 import { brl, pricingLabel } from "@/lib/format";
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/produtos")({
       {
         name: "description",
         content:
-          "Catálogo de produtos e serviços com preço unitário e tipo de cobrança recorrente, pontual ou setup.",
+          "Catálogo de produtos e serviços com preço unitário e tipo de cobrança recorrente, pontual, setup ou por demanda.",
       },
       { property: "og:title", content: "Produtos e serviços — Proposify AI" },
       {
@@ -40,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/produtos")({
   component: ProductsPage,
 });
 
-const pricingTypes: PricingType[] = ["recurring", "one_time", "setup"];
+const pricingTypes: PricingType[] = ["recurring", "one_time", "setup", "usage_based"];
 
 function ProductsPage() {
   const qc = useQueryClient();
@@ -144,13 +145,10 @@ function ProductsPage() {
             </div>
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Preço unitário (R$)</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={form.unit_price}
-                onChange={(e) =>
-                  setForm({ ...form, unit_price: Number(e.target.value) || 0 })
-                }
+                onChange={(val) => setForm({ ...form, unit_price: val })}
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="grid gap-1.5">

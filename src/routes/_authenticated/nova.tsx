@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Select,
   SelectContent,
@@ -403,7 +404,7 @@ function NewProposalPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {(["recurring", "one_time", "setup"] as PricingType[]).map((t) => (
+                      {(["recurring", "one_time", "setup", "usage_based"] as PricingType[]).map((t) => (
                         <SelectItem key={t} value={t}>
                           {pricingLabel[t]}
                         </SelectItem>
@@ -413,7 +414,7 @@ function NewProposalPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5">
-                    <Label>Qtd.</Label>
+                    <Label>Qtd. / Transações</Label>
                     <Input
                       type="number"
                       min={1}
@@ -424,15 +425,11 @@ function NewProposalPage() {
                     />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label>Valor unit.</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
+                    <Label>Valor unitário</Label>
+                    <CurrencyInput
                       value={item.unit_price}
-                      onChange={(e) =>
-                        updateItem(item.key, { unit_price: Number(e.target.value) || 0 })
-                      }
+                      onChange={(val) => updateItem(item.key, { unit_price: val })}
+                      placeholder="R$ 0,00"
                     />
                   </div>
                 </div>

@@ -9,29 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ClientesRouteImport } from './routes/clientes'
-import { Route as NovaRouteImport } from './routes/nova'
-import { Route as ProdutosRouteImport } from './routes/produtos'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/nova'
+import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as PropostaCodeRouteImport } from './routes/proposta.$code'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClientesRoute = ClientesRouteImport.update({
-  id: '/clientes',
+const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
+  id: '/_authenticated/clientes',
   path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NovaRoute = NovaRouteImport.update({
-  id: '/nova',
+const AuthenticatedNovaRoute = AuthenticatedNovaRouteImport.update({
+  id: '/_authenticated/nova',
   path: '/nova',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProdutosRoute = ProdutosRouteImport.update({
-  id: '/produtos',
+const AuthenticatedProdutosRoute = AuthenticatedProdutosRouteImport.update({
+  id: '/_authenticated/produtos',
   path: '/produtos',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -42,71 +42,77 @@ const PropostaCodeRoute = PropostaCodeRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova': typeof NovaRoute
-  '/produtos': typeof ProdutosRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/nova': typeof AuthenticatedNovaRoute
+  '/produtos': typeof AuthenticatedProdutosRoute
   '/proposta/$code': typeof PropostaCodeRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova': typeof NovaRoute
-  '/produtos': typeof ProdutosRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/nova': typeof AuthenticatedNovaRoute
+  '/produtos': typeof AuthenticatedProdutosRoute
   '/proposta/$code': typeof PropostaCodeRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/clientes': typeof ClientesRoute
-  '/nova': typeof NovaRoute
-  '/produtos': typeof ProdutosRoute
+  '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/nova': typeof AuthenticatedNovaRoute
+  '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/proposta/$code': typeof PropostaCodeRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
+  fullPaths: '/clientes' | '/nova' | '/produtos' | '/proposta/$code' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
-  id: '__root__' | '/' | '/clientes' | '/nova' | '/produtos' | '/proposta/$code'
+  to: '/clientes' | '/nova' | '/produtos' | '/proposta/$code' | '/'
+  id:
+    | '__root__'
+    | '/_authenticated/clientes'
+    | '/_authenticated/nova'
+    | '/_authenticated/produtos'
+    | '/proposta/$code'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ClientesRoute: typeof ClientesRoute
-  NovaRoute: typeof NovaRoute
-  ProdutosRoute: typeof ProdutosRoute
+  AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedNovaRoute: typeof AuthenticatedNovaRoute
+  AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   PropostaCodeRoute: typeof PropostaCodeRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/clientes': {
-      id: '/clientes'
+    '/_authenticated/clientes': {
+      id: '/_authenticated/clientes'
       path: '/clientes'
       fullPath: '/clientes'
-      preLoaderRoute: typeof ClientesRouteImport
+      preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/nova': {
-      id: '/nova'
+    '/_authenticated/nova': {
+      id: '/_authenticated/nova'
       path: '/nova'
       fullPath: '/nova'
-      preLoaderRoute: typeof NovaRouteImport
+      preLoaderRoute: typeof AuthenticatedNovaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/produtos': {
-      id: '/produtos'
+    '/_authenticated/produtos': {
+      id: '/_authenticated/produtos'
       path: '/produtos'
       fullPath: '/produtos'
-      preLoaderRoute: typeof ProdutosRouteImport
+      preLoaderRoute: typeof AuthenticatedProdutosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/proposta/$code': {
@@ -120,11 +126,11 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ClientesRoute: ClientesRoute,
-  NovaRoute: NovaRoute,
-  ProdutosRoute: ProdutosRoute,
+  AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedNovaRoute: AuthenticatedNovaRoute,
+  AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   PropostaCodeRoute: PropostaCodeRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -24,6 +24,8 @@ import {
 } from "@/lib/proposals";
 import { brl, shortDate, statusLabel } from "@/lib/format";
 
+import { useAuth } from "@/lib/auth-context";
+
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
@@ -63,7 +65,8 @@ const filters: Array<{ value: "all" | ProposalStatus; label: string }> = [
 function ProposalsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery(proposalsQuery);
+  const { profile } = useAuth();
+  const { data, isLoading } = useQuery(proposalsQuery(profile?.company_id));
   const [term, setTerm] = useState("");
   const [status, setStatus] = useState<"all" | ProposalStatus>("all");
 

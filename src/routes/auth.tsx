@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -190,7 +190,7 @@ function AuthPage() {
               {busy ? "Entrando..." : "Login"}
             </Button>
 
-            <div className="pt-2 text-center">
+            <div className="pt-2 flex flex-col items-center gap-2">
               <button
                 type="button"
                 onClick={() => setForgotPasswordOpen(true)}
@@ -198,6 +198,12 @@ function AuthPage() {
               >
                 Esqueci a senha
               </button>
+              <Link
+                to="/admin-login"
+                className="text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground hover:underline"
+              >
+                É administrador? Acessar Portal Admin →
+              </Link>
             </div>
           </form>
         </div>

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { COMPANY, companySettingsQuery, type PricingType } from "@/lib/proposals";
+import { COMPANY, companySettingsQuery, type PricingType, type Company } from "@/lib/proposals";
 import { brl, longDate, pricingLabel } from "@/lib/format";
 
 export type DocItem = {
@@ -26,11 +26,12 @@ export type DocData = {
   validityDate?: string | null | undefined;
   paymentTerms?: string | null | undefined;
   notes?: string | null | undefined;
+  company?: Company | null | undefined;
 };
 
 export function ProposalDocument({ data }: { data: DocData }) {
   const { data: settings } = useQuery(companySettingsQuery);
-  const company = settings ?? COMPANY;
+  const company = data.company ?? settings ?? COMPANY;
   const recurring = data.items
     .filter((i) => i.pricing_type === "recurring")
     .reduce((s, i) => s + i.total_price, 0);

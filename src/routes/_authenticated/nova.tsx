@@ -28,6 +28,8 @@ import {
 } from "@/lib/proposals";
 import { brl, pricingLabel } from "@/lib/format";
 
+import { useAuth } from "@/lib/auth-context";
+
 type Search = { code?: string };
 
 export const Route = createFileRoute("/_authenticated/nova")({
@@ -83,8 +85,11 @@ function NewProposalPage() {
   const { code } = Route.useSearch();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: clients } = useQuery(clientsQuery);
-  const { data: products } = useQuery(productsQuery);
+  const { profile, company } = useAuth();
+  const companyId = profile?.company_id || company?.id || null;
+
+  const { data: clients } = useQuery(clientsQuery(companyId));
+  const { data: products } = useQuery(productsQuery(companyId));
   const { data: editing } = useQuery({
     ...proposalByCodeQuery(code ?? ""),
     enabled: Boolean(code),
@@ -194,6 +199,8 @@ function NewProposalPage() {
     try {
       const payload = {
         client_id: clientId,
+        company_id: companyId,
+        created_by: profile?.id ?? null,
         total_amount: subtotal,
         discount_amount: discount,
         net_amount: net,
@@ -560,6 +567,7 @@ function NewProposalPage() {
         validityDate: validity,
         paymentTerms,
         notes,
+        company,
       }}
     />
   );

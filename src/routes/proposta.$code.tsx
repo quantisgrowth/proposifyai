@@ -119,6 +119,7 @@ function ProposalView() {
             validityDate: data.validity_date,
             paymentTerms: data.payment_terms,
             notes: data.notes,
+            company: (data as any).companies ?? null,
           }}
         />
       </div>

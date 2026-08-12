@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode, useEffect } from "react";
+import { useState, type ReactNode } from "react";
 import {
   FileText,
   PlusCircle,
@@ -15,39 +15,34 @@ import {
   CheckCircle2,
   ChevronRight,
   Sparkles,
+  Building2,
+  Shield,
+  UserCheck,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { proposalsQuery } from "@/lib/proposals";
 import { brl } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
 
-const navItems = [
-  { to: "/", label: "Propostas", icon: FileText, exact: true },
-  { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true },
-  { to: "/produtos", label: "Produtos / Serviços", icon: Package },
-  { to: "/clientes", label: "Clientes", icon: Users },
-  { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal },
+const allNavItems = [
+  { to: "/", label: "Propostas", icon: FileText, exact: true, adminOnly: false },
+  { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true, adminOnly: false },
+  { to: "/produtos", label: "Produtos / Serviços", icon: Package, adminOnly: false },
+  { to: "/clientes", label: "Clientes", icon: Users, adminOnly: false },
+  { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal, adminOnly: true },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { user, profile, company, isAdmin } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUserEmail(data.session?.user.email ?? null);
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_, session) => {
-      setUserEmail(session?.user.email ?? null);
-    });
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  // Filtrar itens de navegação (apenas admins vêem a aba de admin)
+  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
-  const { data: proposalsData } = useQuery(proposalsQuery);
+  const { data: proposalsData } = useQuery(proposalsQuery(profile?.company_id));
   const list = proposalsData ?? [];
   const sent = list.filter((p) => p.status !== "draft").length;
   const accepted = list.filter((p) => p.status === "accepted").length;
@@ -61,23 +56,33 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.location.href = "/auth";
   };
 
+  const companyDisplayName = company?.name || "Proposify AI";
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col justify-between p-4 sm:p-5">
       {/* Brand Header */}
       <div>
-        <div className="flex items-center justify-between pb-6 pt-1">
+        <div className="flex items-center justify-between pb-5 pt-1">
           <Link to="/" className="group flex items-center gap-3" onClick={() => setMobileOpen(false)}>
             <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105">
               <Sparkles className="size-4 text-primary-foreground" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold tracking-tight text-foreground">Proposify AI</span>
-                <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
-                  Pro
-                </span>
+                <span className="truncate font-semibold tracking-tight text-foreground">{companyDisplayName}</span>
+                {isAdmin ? (
+                  <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-500">
+                    Admin
+                  </span>
+                ) : (
+                  <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
+                    Comercial
+                  </span>
+                )}
               </div>
-              <span className="text-[11px] text-muted-foreground">Sistema Comercial Inteligente</span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                {company?.tagline || "Sistema de Propostas Comerciais"}
+              </span>
             </div>
           </Link>
           <button
@@ -92,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Navigation Section */}
         <div className="space-y-1 pt-2">
           <p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
-            Navegação Principal
+            Menu
           </p>
           <nav className="space-y-1">
             {navItems.map((item) => {
@@ -132,9 +137,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Quick Performance Metrics in Sidebar */}
-        <div className="mt-8 space-y-2 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-sm">
+        <div className="mt-6 space-y-2 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-sm">
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Pipeline Comercial
+            Pipeline ({companyDisplayName})
           </p>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <div className="rounded-lg bg-secondary/50 p-2.5">
@@ -167,13 +172,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-              {userEmail ? userEmail.charAt(0).toUpperCase() : "U"}
+              {profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-foreground">
-                {userEmail || "Usuário"}
+                {profile?.full_name || user?.email?.split("@")[0] || "Usuário"}
               </p>
-              <p className="text-[10px] text-muted-foreground">Operador Comercial</p>
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                {isAdmin ? <Shield className="size-2.5 text-amber-500" /> : <UserCheck className="size-2.5 text-primary" />}
+                <span className="capitalize">{profile?.role || "Colaborador"}</span>
+              </div>
             </div>
           </div>
           <Button
@@ -198,7 +206,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Sparkles className="size-3.5" />
           </div>
-          <span className="font-semibold text-sm tracking-tight">Proposify AI</span>
+          <span className="font-semibold text-sm tracking-tight">{companyDisplayName}</span>
         </Link>
         <Button size="icon" variant="ghost" onClick={() => setMobileOpen(true)}>
           <Menu className="size-5" />

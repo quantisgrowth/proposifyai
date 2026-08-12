@@ -12,6 +12,8 @@ import {
   Search,
   Image as ImageIcon,
   FileText,
+  Upload,
+  X,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -578,29 +580,77 @@ function CompaniesTab() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Seção 1: Identidade Visual e Logo */}
+            {/* Seção 1: Identidade Visual e Logo (Arquivo PNG, JPG, SVG ou URL) */}
             <div className="rounded-lg border border-border bg-secondary/20 p-4 space-y-3">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <ImageIcon className="size-3.5 text-primary" /> Logo da Empresa (Cabeçalho da Proposta)
-              </Label>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <ImageIcon className="size-3.5 text-primary" /> Logo da Empresa (Arquivo PNG, JPG, SVG)
+                </Label>
                 {form.logo_url ? (
-                  <img
-                    src={form.logo_url}
-                    alt="Logo Preview"
-                    className="h-12 max-w-[140px] object-contain rounded border border-border bg-white p-1"
-                  />
-                ) : (
-                  <div className="flex h-12 w-28 items-center justify-center rounded border border-dashed border-border text-[11px] text-muted-foreground">
-                    Sem Logo
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[11px] text-destructive hover:bg-destructive/10 gap-1 px-2"
+                    onClick={() => setForm({ ...form, logo_url: "" })}
+                  >
+                    <X className="size-3" /> Remover Logo
+                  </Button>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex h-16 w-32 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1.5 shadow-sm">
+                  {form.logo_url ? (
+                    <img
+                      src={form.logo_url}
+                      alt="Logo Preview"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-400">Sem Logo</span>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-2 w-full">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="company-logo-upload"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 4 * 1024 * 1024) {
+                          toast.error("O arquivo deve ter no máximo 4MB.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const base64 = event.target?.result as string;
+                          setForm((prev) => ({ ...prev, logo_url: base64 }));
+                          toast.success("Logo carregada!");
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs h-9"
+                      onClick={() => document.getElementById("company-logo-upload")?.click()}
+                    >
+                      <Upload className="size-3.5" /> Escolher Arquivo (PNG, JPG, SVG)
+                    </Button>
                   </div>
-                )}
-                <div className="flex-1">
+
                   <Input
-                    value={form.logo_url}
+                    value={form.logo_url.startsWith("data:") ? "Arquivo enviado (" + form.logo_url.slice(0, 30) + "...)" : form.logo_url}
                     onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                    placeholder="URL da imagem (ex: https://.../logo.png ou SVG)"
-                    className="text-xs"
+                    placeholder="Ou cole a URL direta da imagem (ex: https://.../logo.png)"
+                    className="text-xs h-8"
                   />
                 </div>
               </div>

@@ -44,6 +44,45 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          created_at: string
+          default_payment_terms: string
+          default_validity_days: number
+          document: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          tagline: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_payment_terms?: string
+          default_validity_days?: number
+          document?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          tagline?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_payment_terms?: string
+          default_validity_days?: number
+          document?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          tagline?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           active: boolean

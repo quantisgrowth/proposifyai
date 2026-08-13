@@ -1,7 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Link2, Printer, CheckCircle2, FileCheck2, CheckSquare } from "lucide-react";
+import {
+  ArrowLeft,
+  Link2,
+  Printer,
+  CheckCircle2,
+  FileCheck2,
+  CheckSquare,
+  AlertTriangle,
+  Loader2,
+  Mail,
+  Copy,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type Search = { print?: boolean };
 
@@ -55,6 +68,16 @@ function ProposalView() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Authentication session check and generation state
+  const [hasSession, setHasSession] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Sharing email modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [customEmail, setCustomEmail] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+
   const { data, isLoading } = useQuery({
     queryKey: ["proposal-view", code],
     queryFn: async () => {
@@ -63,6 +86,31 @@ function ProposalView() {
       return getPublicProposal({ data: code });
     },
   });
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setHasSession(!!data.session);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (data) {
+      setCustomEmail(data.clients?.email || "");
+      const compName = data.companies?.name || "Proposify AI";
+      setEmailSubject(`Proposta Comercial ${data.proposal_code} — ${compName}`);
+      
+      const clientName = data.clients?.contact_name || data.clients?.name || "Prezado(a)";
+      const url = `${window.location.origin}/proposta/${data.proposal_code}`;
+      setEmailBody(
+        `Olá ${clientName},\n\n` +
+        `Segue o link para visualização da Proposta Comercial ${data.proposal_code} preparada para você:\n\n` +
+        `${url}\n\n` +
+        `Qualquer dúvida ou ajuste, estamos à disposição.\n\n` +
+        `Atenciosamente,\n` +
+        `${compName}`
+      );
+    }
+  }, [data]);
 
   useEffect(() => {
     if (print && data) {
@@ -93,6 +141,42 @@ function ProposalView() {
       toast.success("Link da proposta copiado");
     } catch {
       toast.error("Não foi possível copiar o link");
+    }
+  };
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(emailBody);
+      toast.success("Mensagem do e-mail copiada!");
+    } catch {
+      toast.error("Erro ao copiar a mensagem");
+    }
+  };
+
+  const handleSendLocalEmail = () => {
+    const subject = encodeURIComponent(emailSubject);
+    const body = encodeURIComponent(emailBody);
+    window.open(`mailto:${customEmail}?subject=${subject}&body=${body}`, "_blank");
+    setShareModalOpen(false);
+  };
+
+  const handleGenerateOfficial = async () => {
+    setIsGenerating(true);
+    try {
+      const { error } = await supabase
+        .from("proposals")
+        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .eq("id", data.id);
+      if (error) throw error;
+      
+      toast.success("Proposta Oficial gerada e disponibilizada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["proposal-view", code] });
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao gerar proposta oficial.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -133,6 +217,11 @@ function ProposalView() {
             <ArrowLeft className="size-4" /> Propostas
           </Button>
           <div className="flex gap-2">
+            {hasSession && data.status !== "draft" && (
+              <Button variant="outline" size="sm" onClick={() => setShareModalOpen(true)}>
+                <Mail className="size-4" /> Enviar por E-mail
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={copyLink}>
               <Link2 className="size-4" /> Copiar link
             </Button>
@@ -142,6 +231,31 @@ function ProposalView() {
           </div>
         </div>
       </div>
+
+      {/* Draft/Simulation top alert banner for logged in sellers */}
+      {hasSession && data.status === "draft" && (
+        <div className="no-print bg-amber-500/10 border-b border-amber-500/20 px-4 py-3">
+          <div className="mx-auto max-w-3xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm text-amber-800 dark:text-amber-300">
+            <p className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+              <span>Você está visualizando a simulação desta proposta (Rascunho). Revise os dados abaixo e clique em Gerar Proposta para oficializá-la.</span>
+            </p>
+            <Button
+              size="sm"
+              disabled={isGenerating}
+              onClick={handleGenerateOfficial}
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 h-8 font-semibold shrink-0"
+            >
+              {isGenerating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <FileCheck2 className="size-3.5" />
+              )}
+              Gerar Proposta Oficial
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 py-8 sm:px-6">
         <ProposalDocument
@@ -198,7 +312,7 @@ function ProposalView() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-md space-y-4">
             <div className="space-y-1.5">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
-                <FileCheck2 className="size-5 text-primary" /> Aceite da Proposta Comercial
+                <CheckSquare className="size-5 text-primary" /> Aceite da Proposta Comercial
               </h3>
               <p className="text-sm text-muted-foreground">
                 Se você está de acordo com o escopo, cronograma, valores e condições descritos no documento acima, finalize a contratação realizando o aceite digital.
@@ -215,7 +329,7 @@ function ProposalView() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Status da proposta:</span>
             <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              {data.status}
+              {statusLabel[data.status] ?? data.status}
             </span>
           </div>
         )}
@@ -281,6 +395,71 @@ function ProposalView() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Proposal Dialog Modal */}
+      <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-bold text-lg text-foreground">
+              <Mail className="size-5 text-primary" /> Enviar Proposta Comercial
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Compartilhe a proposta com o cliente via e-mail corporativo ou WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">E-mail do Destinatário</Label>
+              <Input
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="cliente@email.com"
+                className="text-sm"
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Assunto do E-mail</Label>
+              <Input
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Assunto da proposta"
+                className="text-sm"
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Corpo da Mensagem</Label>
+              <Textarea
+                rows={6}
+                value={emailBody}
+                onChange={(e) => setEmailBody(e.target.value)}
+                className="text-xs leading-relaxed"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 pt-3 flex-col sm:flex-row-reverse sm:justify-between items-stretch">
+            <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
+              <Button onClick={handleSendLocalEmail} className="flex-1 sm:flex-none font-semibold gap-1.5">
+                <ExternalLink className="size-4" /> Abrir no E-mail
+              </Button>
+              <Button variant="outline" onClick={() => setShareModalOpen(false)}>
+                Cancelar
+              </Button>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button type="button" variant="secondary" onClick={handleCopyMessage} className="flex-1 sm:flex-none gap-1">
+                <Copy className="size-3.5" /> Copiar Mensagem
+              </Button>
+              <Button type="button" variant="secondary" onClick={copyLink} className="flex-1 sm:flex-none gap-1">
+                <Copy className="size-3.5" /> Copiar Link
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

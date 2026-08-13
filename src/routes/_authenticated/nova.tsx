@@ -33,6 +33,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProposalDocument, type DocItem } from "@/components/proposal-document";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
   clientsQuery,
   productsQuery,
   companiesQuery,
@@ -335,7 +341,7 @@ function NewProposalPage() {
     toast.success("Cliente cadastrado");
   };
 
-  const save = async (status: "draft" | "sent") => {
+  const save = async (status: "draft" | "sent", redirectToPreview = true) => {
     if (!clientId) {
       toast.error("Selecione um cliente");
       return;
@@ -404,7 +410,11 @@ function NewProposalPage() {
 
       await qc.invalidateQueries({ queryKey: ["proposals"] });
       toast.success(status === "sent" ? "Proposta enviada!" : "Rascunho salvo!");
-      navigate({ to: `/proposta/${proposalCode}` });
+      if (redirectToPreview) {
+        navigate({ to: `/proposta/${proposalCode}` });
+      } else {
+        navigate({ to: "/" });
+      }
     } catch (err: unknown) {
       console.error("Erro detalhado ao salvar proposta:", err);
       const msg =
@@ -771,7 +781,7 @@ function NewProposalPage() {
             variant="outline"
             size="sm"
             onClick={() => setItems((prev) => [...prev, emptyItem()])}
-            className="w-full gap-2"
+            className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/5 hover:border-primary transition-all font-semibold"
           >
             <Plus className="size-4" /> Adicionar Item ao Escopo
           </Button>
@@ -901,11 +911,11 @@ function NewProposalPage() {
 
       {/* BOTÕES DE AÇÃO */}
       <div className="flex flex-wrap gap-3 border-t border-border pt-6">
-        <Button variant="outline" disabled={saving} onClick={() => save("draft")} className="h-11">
+        <Button variant="outline" disabled={saving} onClick={() => save("draft", false)} className="h-11">
           Salvar Rascunho
         </Button>
-        <Button disabled={saving} onClick={() => save("sent")} className="h-11 flex-1 font-semibold">
-          {saving ? "Gerando Proposta..." : "Gerar e Finalizar Proposta"}
+        <Button disabled={saving} onClick={() => save("draft", true)} className="h-11 flex-1 font-semibold">
+          {saving ? "Carregando..." : "Visualizar Simulação (Salva Rascunho)"}
         </Button>
       </div>
     </div>
@@ -950,9 +960,16 @@ function NewProposalPage() {
         </div>
       </div>
 
-      <div className="mt-8 hidden gap-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div>{form}</div>
-        <div className="sticky top-24 h-fit scale-[0.88] origin-top">{preview}</div>
+      <div className="mt-8 hidden lg:block">
+        <ResizablePanelGroup direction="horizontal" className="min-h-[78vh] items-stretch gap-0 border border-border rounded-xl bg-card overflow-hidden">
+          <ResizablePanel defaultSize={52} minSize={30} className="p-6 overflow-y-auto max-h-[78vh] scrollbar-thin">
+            {form}
+          </ResizablePanel>
+          <ResizableHandle withHandle className="hover:bg-primary/20 transition-colors" />
+          <ResizablePanel defaultSize={48} minSize={30} className="p-6 overflow-y-auto max-h-[78vh] bg-secondary/5 scrollbar-thin">
+            {preview}
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
       <Tabs defaultValue="form" className="mt-8 lg:hidden">

@@ -11,6 +11,11 @@ import {
   ExternalLink,
   MessageSquare,
   Building2,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,6 +53,7 @@ import {
   proposalsQuery,
   companiesQuery,
   kanbanColumnsQuery,
+  proposalByCodeQuery,
   type ProposalStatus,
   type ProposalWithClient,
   type KanbanColumn,
@@ -56,6 +62,18 @@ import { brl, shortDate, statusLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import { ResizableDialog } from "@/components/ui/resizable-dialog";
 import { ProposalEditor } from "@/components/proposal-editor";
+import { ProposalDocument } from "@/components/proposal-document";
+
+const colorOptions = [
+  { value: "bg-slate-400", label: "Cinza", class: "bg-slate-400" },
+  { value: "bg-blue-500", label: "Azul", class: "bg-blue-500" },
+  { value: "bg-emerald-500", label: "Verde", class: "bg-emerald-500" },
+  { value: "bg-destructive", label: "Vermelho", class: "bg-destructive" },
+  { value: "bg-amber-500", label: "Amarelo", class: "bg-amber-500" },
+  { value: "bg-purple-500", label: "Roxo", class: "bg-purple-500" },
+  { value: "bg-pink-500", label: "Rosa", class: "bg-pink-500" },
+  { value: "bg-teal-500", label: "Teal", class: "bg-teal-500" },
+];
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -121,6 +139,140 @@ function ProposalsPage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [editingProposalCode, setEditingProposalCode] = useState<string | null>(null);
+  
+  // Custom columns and view states on proposals page
+  const [viewingProposalCode, setViewingProposalCode] = useState<string | null>(null);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [columnForm, setColumnForm] = useState({ name: "", slug: "", color: "bg-blue-500" });
+  const [savingColumn, setSavingColumn] = useState(false);
+
+  const isCompanySelected = activeCompanyFilter !== null;
+
+  const { data: viewingProposal, isLoading: loadingViewingProposal } = useQuery({
+    ...proposalByCodeQuery(viewingProposalCode ?? ""),
+    enabled: Boolean(viewingProposalCode),
+  });
+
+  const handleMoveColumn = async (index: number, direction: "left" | "right") => {
+    if (!dbColumns) return;
+    const otherIndex = direction === "left" ? index - 1 : index + 1;
+    if (otherIndex < 0 || otherIndex >= dbColumns.length) return;
+
+    const colA = dbColumns[index];
+    const colB = dbColumns[otherIndex];
+
+    try {
+      const { error: errA } = await supabase
+        .from("kanban_columns")
+        .update({ position: colB.position })
+        .eq("id", colA.id);
+      if (errA) throw errA;
+
+      const { error: errB } = await supabase
+        .from("kanban_columns")
+        .update({ position: colA.position })
+        .eq("id", colB.id);
+      if (errB) throw errB;
+
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+    } catch (err: any) {
+      toast.error("Erro ao ordenar colunas: " + err.message);
+    }
+  };
+
+  const handleDuplicateColumn = async (col: any) => {
+    try {
+      const nextPos = dbColumns ? dbColumns.length : 0;
+      let newSlug = `${col.slug}-copy-${Math.random().toString(36).slice(2, 5)}`;
+      const { error } = await supabase.from("kanban_columns").insert({
+        company_id: selectedCompanyId === "all" ? col.company_id : selectedCompanyId,
+        name: `${col.name} (Cópia)`,
+        slug: newSlug,
+        color: col.color,
+        position: nextPos,
+      });
+
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+      toast.success("Etapa duplicada!");
+    } catch (err: any) {
+      toast.error("Erro ao duplicar etapa: " + err.message);
+    }
+  };
+
+  const handleDeleteColumn = async (col: any) => {
+    const count = columnsData[col.slug]?.length || 0;
+    if (count > 0) {
+      toast.error(`Não é possível excluir a etapa "${col.name}" porque ela contém ${count} propostas. Mova as propostas para outra etapa antes de excluir.`);
+      return;
+    }
+
+    if (confirm(`Deseja realmente excluir a etapa "${col.name}"?`)) {
+      try {
+        const { error } = await supabase.from("kanban_columns").delete().eq("id", col.id);
+        if (error) throw error;
+        qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+        toast.success("Etapa excluída!");
+      } catch (err: any) {
+        toast.error("Erro ao excluir etapa: " + err.message);
+      }
+    }
+  };
+
+  const handleColumnNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const generatedSlug = val
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    setColumnForm((prev) => ({ ...prev, name: val, slug: generatedSlug }));
+  };
+
+  const handleSaveColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!columnForm.name.trim() || !columnForm.slug.trim()) {
+      toast.error("Nome é obrigatório.");
+      return;
+    }
+    setSavingColumn(true);
+    try {
+      const nextPos = dbColumns ? dbColumns.length : 0;
+      const targetCompanyId = selectedCompanyId === "all"
+        ? (companies?.[0]?.id ?? null)
+        : selectedCompanyId;
+      
+      if (!targetCompanyId) {
+        toast.error("Por favor, selecione uma empresa para adicionar uma etapa.");
+        setSavingColumn(false);
+        return;
+      }
+
+      const { error } = await supabase.from("kanban_columns").insert({
+        company_id: targetCompanyId,
+        name: columnForm.name.trim(),
+        slug: columnForm.slug.trim(),
+        color: columnForm.color,
+        position: nextPos,
+      });
+
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+      setColumnModalOpen(false);
+      toast.success("Nova etapa criada!");
+    } catch (err: any) {
+      toast.error("Erro ao criar etapa: " + err.message);
+    } finally {
+      setSavingColumn(false);
+    }
+  };
+
+  const openAddColumnModal = () => {
+    setColumnForm({ name: "", slug: "", color: "bg-blue-500" });
+    setColumnModalOpen(true);
+  };
 
   // Share proposal email modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -440,20 +592,79 @@ function ProposalsPage() {
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-border/60">
-                  <div className="flex items-center gap-2">
-                    <span className={`size-2 rounded-full ${
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`size-2 rounded-full shrink-0 ${
                       columns.find(c => c.slug === colStatus)?.color || "bg-slate-400"
                     }`} />
-                    <span className="font-semibold text-xs text-foreground uppercase tracking-wide">
+                    <span className="font-semibold text-xs text-foreground uppercase tracking-wide truncate" title={columns.find(c => c.slug === colStatus)?.name || colStatus}>
                       {columns.find(c => c.slug === colStatus)?.name || colStatus}
                     </span>
                     <span className="rounded-full bg-secondary/80 text-muted-foreground px-1.5 py-0.2 text-[9px] font-bold tabular-nums">
                       {columnProposals.length}
                     </span>
                   </div>
-                  <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
-                    {brl(columnTotal)}
-                  </span>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">
+                      {brl(columnTotal)}
+                    </span>
+                    
+                    {isCompanySelected && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-foreground cursor-pointer">
+                            <MoreHorizontal className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-card">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const idx = columns.findIndex(c => c.slug === colStatus);
+                              handleMoveColumn(idx, "left");
+                            }}
+                            disabled={columns.findIndex(c => c.slug === colStatus) === 0}
+                            className="text-xs cursor-pointer"
+                          >
+                            <ChevronLeft className="size-3.5 mr-2 shrink-0" /> Mover para Esquerda
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const idx = columns.findIndex(c => c.slug === colStatus);
+                              handleMoveColumn(idx, "right");
+                            }}
+                            disabled={columns.findIndex(c => c.slug === colStatus) === columns.length - 1}
+                            className="text-xs cursor-pointer"
+                          >
+                            <ChevronRight className="size-3.5 mr-2 shrink-0" /> Mover para Direita
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const col = columns.find(c => c.slug === colStatus);
+                              if (col) handleDuplicateColumn(col);
+                            }}
+                            className="text-xs cursor-pointer"
+                          >
+                            <Copy className="size-3.5 mr-2 shrink-0" /> Duplicar Etapa
+                          </DropdownMenuItem>
+                          
+                          {!(colStatus === "draft" || colStatus === "sent") && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const col = columns.find(c => c.slug === colStatus);
+                                  if (col) handleDeleteColumn(col);
+                                }}
+                                className="text-xs text-destructive hover:text-destructive cursor-pointer"
+                              >
+                                <Trash2 className="size-3.5 mr-2 shrink-0" /> Excluir Etapa
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
 
                 {/* Cards Container */}
@@ -494,10 +705,7 @@ function ProposalsPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem
                                 onClick={() =>
-                                  navigate({
-                                    to: "/proposta/$code",
-                                    params: { code: p.proposal_code },
-                                  })
+                                  setViewingProposalCode(p.proposal_code)
                                 }
                               >
                                 Visualizar
@@ -572,6 +780,18 @@ function ProposalsPage() {
               </div>
             );
           })}
+
+          {/* Botão "+ Adicionar Etapa" no final */}
+          {isCompanySelected && (
+            <button
+              onClick={openAddColumnModal}
+              className="flex flex-col min-w-[280px] w-full max-w-[340px] h-[150px] items-center justify-center rounded-xl border border-dashed border-border/80 bg-card/25 hover:bg-card/45 hover:border-primary/50 transition-all duration-200 cursor-pointer text-muted-foreground hover:text-foreground shrink-0 self-start mt-0"
+            >
+              <Plus className="size-6 mb-2 text-primary/75" />
+              <span className="font-semibold text-sm">Adicionar Etapa</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">Criar nova coluna no Kanban</span>
+            </button>
+          )}
         </div>
       ) : (
         /* Table List View */
@@ -777,6 +997,168 @@ function ProposalsPage() {
           </div>
         )}
       </ResizableDialog>
+
+      {/* Dialog para Visualizar Proposta em Pop-up */}
+      <Dialog open={Boolean(viewingProposalCode)} onOpenChange={(open) => { if (!open) setViewingProposalCode(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 border-none bg-card overflow-hidden select-text shadow-2xl">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-card/65">
+            <DialogTitle className="text-lg font-bold text-foreground">
+              Visualizar Proposta {viewingProposalCode}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Documento comercial oficial gerado para o cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6 bg-secondary/15">
+            {loadingViewingProposal ? (
+              <p className="p-12 text-center text-sm text-muted-foreground font-semibold">Carregando detalhes da proposta…</p>
+            ) : viewingProposal ? (
+              <div className="max-w-3xl mx-auto bg-background rounded-xl shadow-sm border border-border p-4">
+                <ProposalDocument
+                  data={{
+                    code: viewingProposal.proposal_code,
+                    clientName: viewingProposal.clients?.name ?? "—",
+                    clientDocument: viewingProposal.clients?.document ?? "—",
+                    contactName: viewingProposal.clients?.contact_name ?? "—",
+                    email: viewingProposal.clients?.email ?? "—",
+                    phone: viewingProposal.clients?.phone ?? "—",
+                    campaignName: viewingProposal.campaign_name || "Condições Exclusivas",
+                    solutionName: viewingProposal.solution_name || "",
+                    objectiveText: viewingProposal.objective_text || undefined,
+                    fidelityPolicy: viewingProposal.fidelity_policy || undefined,
+                    nextStepsText: viewingProposal.next_steps_text || undefined,
+                    items: (viewingProposal.proposal_items ?? []).map((i) => ({
+                      title: i.title,
+                      description: i.description ?? "",
+                      pricing_type: i.pricing_type,
+                      quantity: Number(i.quantity),
+                      unit_price: Number(i.unit_price),
+                      original_price: i.original_price ? Number(i.original_price) : null,
+                      is_included: i.is_included ?? false,
+                      total_price: Number(i.total_price),
+                    })),
+                    total: Number(viewingProposal.total_amount),
+                    discount: Number(viewingProposal.discount_amount),
+                    net: Number(viewingProposal.net_amount),
+                    validityDate: viewingProposal.validity_date || "",
+                    paymentTerms: viewingProposal.payment_terms || "",
+                    notes: viewingProposal.notes || "",
+                    company: viewingProposal.companies,
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="p-12 text-center text-sm text-muted-foreground font-semibold">Erro ao carregar proposta.</p>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-border bg-card/65 gap-2.5 flex-col sm:flex-row sm:justify-between items-stretch">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  if (!viewingProposalCode) return;
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/proposta/${viewingProposalCode}`);
+                    toast.success("Link da proposta copiado!");
+                  } catch {
+                    toast.error("Erro ao copiar o link");
+                  }
+                }}
+                className="flex-1 sm:flex-none gap-1.5 cursor-pointer"
+              >
+                <Copy className="size-4" /> Copiar Link
+              </Button>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
+              <Button
+                onClick={() => {
+                  if (!viewingProposalCode) return;
+                  window.open(`/proposta/${viewingProposalCode}?print=true`, "_blank");
+                }}
+                variant="outline"
+                className="gap-1.5 cursor-pointer"
+              >
+                Imprimir / PDF
+              </Button>
+              <Button onClick={() => setViewingProposalCode(null)} variant="outline" className="cursor-pointer">
+                Fechar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Adicionar/Editar Coluna */}
+      <Dialog open={columnModalOpen} onOpenChange={setColumnModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              Nova Etapa do Kanban
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure as propriedades visuais da nova etapa.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveColumn} className="space-y-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Nome da Etapa</Label>
+              <Input
+                value={columnForm.name}
+                onChange={handleColumnNameChange}
+                placeholder="Ex: Em Negociação"
+                required
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Identificador (Slug)</Label>
+              <Input
+                value={columnForm.slug}
+                placeholder="ex-em-negociacao"
+                disabled
+                required
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Gerado automaticamente a partir do nome para controle interno.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-semibold text-muted-foreground">Cor do Marcador</Label>
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {colorOptions.map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setColumnForm((prev) => ({ ...prev, color: opt.value }))}
+                    className={`flex items-center gap-1.5 justify-center px-2 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                      columnForm.color === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-secondary/40 text-muted-foreground"
+                    }`}
+                  >
+                    <span className={`size-2.5 rounded-full ${opt.class}`} />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setColumnModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingColumn}>
+                {savingColumn ? "Salvando..." : "Criar Etapa"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

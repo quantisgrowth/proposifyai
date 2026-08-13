@@ -128,7 +128,15 @@ function NewProposalPage() {
     }
   }, [companies, profile, selectedCompanyId]);
 
-  const activeCompanyId = isAdmin ? selectedCompanyId : profile?.company_id || userCompany?.id || null;
+  const fallbackCompanyId = useMemo(() => {
+    if (companies && companies.length > 0) {
+      const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
+      return defaultComp.id;
+    }
+    return null;
+  }, [companies]);
+
+  const activeCompanyId = (isAdmin ? selectedCompanyId : profile?.company_id || userCompany?.id) || fallbackCompanyId || null;
   const activeCompany = useMemo(() => {
     return companies?.find((c) => c.id === activeCompanyId) ?? userCompany ?? null;
   }, [companies, activeCompanyId, userCompany]);
@@ -705,17 +713,32 @@ function NewProposalPage() {
 
                       {item.item_adjustment_mode !== "none" ? (
                         <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={item.item_adjustment_val || ""}
-                            onChange={(e) =>
-                              updateItem(item.key, { item_adjustment_val: Number(e.target.value) || 0 })
-                            }
-                            placeholder={item.item_adjustment_mode.includes("percent") ? "Ex: 10%" : "Ex: R$ 1,50"}
-                            className="h-8 text-xs"
-                          />
+                          {item.item_adjustment_mode.includes("fixed") ? (
+                            <CurrencyInput
+                              value={item.item_adjustment_val || 0}
+                              onChange={(val) =>
+                                updateItem(item.key, { item_adjustment_val: val })
+                              }
+                              placeholder="Ex: R$ 1,50"
+                              className="h-8 text-xs"
+                            />
+                          ) : (
+                            <div className="relative flex items-center flex-1">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step="0.1"
+                                value={item.item_adjustment_val || ""}
+                                onChange={(e) =>
+                                  updateItem(item.key, { item_adjustment_val: Number(e.target.value) || 0 })
+                                }
+                                placeholder="Ex: 10"
+                                className="h-8 text-xs pr-7 text-right font-medium"
+                              />
+                              <span className="absolute right-2.5 text-xs text-muted-foreground font-semibold">%</span>
+                            </div>
+                          )}
                         </div>
                       ) : null}
 
@@ -751,13 +774,28 @@ function NewProposalPage() {
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:items-end sm:gap-4">
               <div className="grid min-w-0 gap-1.5 flex-1">
                 <Label className="text-xs">Desconto Global Adicional (no Total da Proposta)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
-                />
+                {discountMode === "fixed" ? (
+                  <CurrencyInput
+                    value={discountValue}
+                    onChange={(val) => setDiscountValue(val)}
+                    placeholder="Ex: R$ 100,00"
+                    className="h-9 text-xs font-semibold text-right"
+                  />
+                ) : (
+                  <div className="relative flex items-center">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={discountValue || ""}
+                      onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                      placeholder="Ex: 10"
+                      className="h-9 text-xs pr-7 text-right font-medium"
+                    />
+                    <span className="absolute right-2.5 text-xs text-muted-foreground font-semibold">%</span>
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 gap-1">
                 {(["percent", "fixed"] as const).map((mode) => (

@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   FileText,
   PlusCircle,
@@ -14,8 +14,8 @@ import {
   Clock,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
-  Building2,
   Shield,
   UserCheck,
 } from "lucide-react";
@@ -36,6 +36,16 @@ const allNavItems = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Hydrate collapsed state from localStorage client-side
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar-collapsed");
+    if (saved === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
   const { user, profile, company, isAdmin } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -60,11 +70,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const companyLogo = company?.logo_url;
 
   const SidebarContent = () => (
-    <div className="flex h-full flex-col justify-between p-4 sm:p-5">
+    <div className={`flex h-full flex-col justify-between ${sidebarCollapsed ? "p-3" : "p-4 sm:p-5"}`}>
       {/* Brand Header */}
       <div>
         <div className="flex items-center justify-between pb-5 pt-1">
-          <Link to="/" className="group flex items-center gap-3" onClick={() => setMobileOpen(false)}>
+          <Link
+            to="/"
+            className={`group flex items-center ${sidebarCollapsed ? "justify-center w-full" : "gap-3"}`}
+            onClick={() => setMobileOpen(false)}
+          >
             {companyLogo ? (
               <img
                 src={companyLogo}
@@ -72,27 +86,29 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="h-8 max-w-[100px] object-contain rounded bg-white p-0.5"
               />
             ) : (
-              <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105">
+              <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105 shrink-0">
                 <Sparkles className="size-4 text-primary-foreground" />
               </div>
             )}
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate font-semibold tracking-tight text-foreground">{companyDisplayName}</span>
-                {isAdmin ? (
-                  <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-500">
-                    Admin
-                  </span>
-                ) : (
-                  <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
-                    Comercial
-                  </span>
-                )}
+            {!sidebarCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-semibold tracking-tight text-foreground">{companyDisplayName}</span>
+                  {isAdmin ? (
+                    <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-500">
+                      Admin
+                    </span>
+                  ) : (
+                    <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary">
+                      Comercial
+                    </span>
+                  )}
+                </div>
+                <span className="truncate text-[11px] text-muted-foreground">
+                  {company?.tagline || "Sistema de Propostas Comerciais"}
+                </span>
               </div>
-              <span className="truncate text-[11px] text-muted-foreground">
-                {company?.tagline || "Sistema de Propostas Comerciais"}
-              </span>
-            </div>
+            )}
           </Link>
           <button
             type="button"
@@ -105,9 +121,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Navigation Section */}
         <div className="space-y-1 pt-2">
-          <p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
-            Menu
-          </p>
+          {!sidebarCollapsed && (
+            <p className="px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80">
+              Menu
+            </p>
+          )}
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -124,11 +142,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                       : item.highlight
                       ? "bg-primary/5 text-foreground hover:bg-primary/10"
                       : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
-                  }`}
+                  } ${sidebarCollapsed ? "justify-center px-2" : ""}`}
+                  title={sidebarCollapsed ? item.label : undefined}
                 >
                   <div className="flex items-center gap-3">
                     <Icon
-                      className={`size-4 transition-colors ${
+                      className={`size-4 transition-colors shrink-0 ${
                         isActive
                           ? "text-primary-foreground"
                           : item.highlight
@@ -136,9 +155,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                           : "text-muted-foreground group-hover:text-foreground"
                       }`}
                     />
-                    <span>{item.label}</span>
+                    {!sidebarCollapsed && <span>{item.label}</span>}
                   </div>
-                  {isActive && <ChevronRight className="size-3.5 opacity-80" />}
+                  {!sidebarCollapsed && isActive && <ChevronRight className="size-3.5 opacity-80" />}
                 </Link>
               );
             })}
@@ -146,62 +165,68 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Quick Performance Metrics in Sidebar */}
-        <div className="mt-6 space-y-2 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            Pipeline ({companyDisplayName})
-          </p>
-          <div className="grid grid-cols-2 gap-2 pt-1">
+        {!sidebarCollapsed && (
+          <div className="mt-6 space-y-2 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-sm">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Pipeline ({companyDisplayName})
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="rounded-lg bg-secondary/50 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <CheckCircle2 className="size-3 text-emerald-500" />
+                  <span>Conversão</span>
+                </div>
+                <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{conversion}%</p>
+              </div>
+              <div className="rounded-lg bg-secondary/50 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Clock className="size-3 text-amber-500" />
+                  <span>Enviadas</span>
+                </div>
+                <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{sent}</p>
+              </div>
+            </div>
             <div className="rounded-lg bg-secondary/50 p-2.5">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <CheckCircle2 className="size-3 text-emerald-500" />
-                <span>Conversão</span>
+                <TrendingUp className="size-3 text-sky-500" />
+                <span>Valor em Negociação</span>
               </div>
-              <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{conversion}%</p>
-            </div>
-            <div className="rounded-lg bg-secondary/50 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Clock className="size-3 text-amber-500" />
-                <span>Enviadas</span>
-              </div>
-              <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{sent}</p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{brl(pending)}</p>
             </div>
           </div>
-          <div className="rounded-lg bg-secondary/50 p-2.5">
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <TrendingUp className="size-3 text-sky-500" />
-              <span>Valor em Negociação</span>
-            </div>
-            <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{brl(pending)}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Footer Profile & Logout */}
       <div className="border-t border-border/80 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className={`flex min-w-0 items-center ${sidebarCollapsed ? "justify-center w-full" : "gap-2.5"}`}>
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
               {profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-foreground">
-                {profile?.full_name || user?.email?.split("@")[0] || "Usuário"}
-              </p>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                {isAdmin ? <Shield className="size-2.5 text-amber-500" /> : <UserCheck className="size-2.5 text-primary" />}
-                <span className="capitalize">{profile?.role || "Colaborador"}</span>
+            {!sidebarCollapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-foreground">
+                  {profile?.full_name || user?.email?.split("@")[0] || "Usuário"}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  {isAdmin ? <Shield className="size-2.5 text-amber-500" /> : <UserCheck className="size-2.5 text-primary" />}
+                  <span className="capitalize">{profile?.role || "Colaborador"}</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleSignOut}
-            title="Sair da conta"
-            className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <LogOut className="size-4" />
-          </Button>
+          {!sidebarCollapsed && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleSignOut}
+              title="Sair da conta"
+              className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -236,12 +261,33 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* Desktop Split View: Left Sidebar + Right Content */}
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen relative">
         {/* Desktop Fixed Sidebar */}
-        <aside className="no-print hidden w-64 shrink-0 border-r border-border bg-card/40 backdrop-blur-xl md:block lg:w-72">
+        <aside
+          className={`no-print relative hidden shrink-0 border-r border-border bg-card/40 backdrop-blur-xl md:block transition-all duration-300 ${
+            sidebarCollapsed ? "w-20" : "w-64 lg:w-72"
+          }`}
+        >
           <div className="sticky top-0 h-screen overflow-y-auto">
             <SidebarContent />
           </div>
+
+          {/* Toggle Sidebar Button for Desktop */}
+          <button
+            onClick={() => {
+              const next = !sidebarCollapsed;
+              setSidebarCollapsed(next);
+              localStorage.setItem("sidebar-collapsed", String(next));
+            }}
+            className="no-print hidden md:flex absolute -right-3 top-6 z-40 size-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow hover:text-foreground hover:scale-105 transition-all cursor-pointer"
+            title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="size-3.5" />
+            ) : (
+              <ChevronLeft className="size-3.5" />
+            )}
+          </button>
         </aside>
 
         {/* Main Content Area */}

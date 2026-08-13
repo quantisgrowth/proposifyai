@@ -411,7 +411,7 @@ function NewProposalPage() {
       await qc.invalidateQueries({ queryKey: ["proposals"] });
       toast.success(status === "sent" ? "Proposta enviada!" : "Rascunho salvo!");
       if (redirectToPreview) {
-        navigate({ to: `/proposta/${proposalCode}` });
+        navigate({ to: "/proposta/$code", params: { code: proposalCode } });
       } else {
         navigate({ to: "/" });
       }

@@ -120,13 +120,20 @@ function NewProposalPage() {
     return profile?.company_id ?? "";
   });
 
-  // Atualizar quando os dados da empresa chegarem
+  // Sincronizar com o perfil quando ele carregar
   useEffect(() => {
-    if (!selectedCompanyId && companies && companies.length > 0) {
-      const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
-      setSelectedCompanyId(profile?.company_id || defaultComp.id);
+    if (profile?.company_id) {
+      setSelectedCompanyId(profile.company_id);
     }
-  }, [companies, profile, selectedCompanyId]);
+  }, [profile?.company_id]);
+
+  // Se o perfil não tiver empresa mas tivermos a lista de empresas, usar o padrão
+  useEffect(() => {
+    if (!selectedCompanyId && companies && companies.length > 0 && !profile?.company_id) {
+      const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
+      setSelectedCompanyId(defaultComp.id);
+    }
+  }, [companies, selectedCompanyId, profile?.company_id]);
 
   const fallbackCompanyId = useMemo(() => {
     if (companies && companies.length > 0) {

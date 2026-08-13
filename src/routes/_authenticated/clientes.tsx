@@ -82,7 +82,8 @@ function ClientsPage() {
 
   // Company filtering for admins
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    return profile?.company_id ?? "all";
+    if (isAdmin) return "all";
+    return profile?.company_id ?? "";
   });
 
   const activeCompanyFilter = isAdmin
@@ -151,12 +152,29 @@ function ClientsPage() {
         }
       }
 
+      let contactName = "";
+      if (data.qsa && data.qsa.length > 0) {
+        contactName = data.qsa[0].nome_socio;
+      } else if (data.razao_social) {
+        contactName = data.razao_social.replace(/^[\d\.\-\/]+\s+/, "").trim();
+      }
+
+      if (contactName) {
+        contactName = contactName
+          .toLowerCase()
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      } else {
+        contactName = prev.contact_name || "Responsável Legal";
+      }
+
       setForm((prev) => ({
         ...prev,
         name: data.razao_social || data.nome_fantasia || prev.name,
         email: data.email || prev.email,
         phone: formattedPhone || prev.phone,
-        contact_name: data.qsa?.[0]?.nome_socio || prev.contact_name || "Responsável Legal",
+        contact_name: contactName,
       }));
       
       toast.success("Dados do CNPJ importados automaticamente!");

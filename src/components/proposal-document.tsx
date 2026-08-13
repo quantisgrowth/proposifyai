@@ -151,8 +151,9 @@ export function ProposalDocument({ data }: { data: DocData }) {
           {longDate(new Date().toISOString())}
         </p>
         {data.code ? (
-          <p className="text-xs text-slate-500 pt-1">
-            Código do Documento: <span className="font-mono">{data.code}</span>
+          <p>
+            <strong className="text-slate-900 font-bold">ID da Proposta:</strong>{" "}
+            <span className="font-mono">{data.code}</span>
           </p>
         ) : null}
       </section>

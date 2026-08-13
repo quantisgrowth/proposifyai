@@ -1,8 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type PricingType = "recurring" | "one_time" | "setup" | "usage_based";
-export type ProposalStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
+export type ProposalStatus = string;
 export type UserRole = "admin" | "colaborador";
+
+export type KanbanColumn = {
+  id: string;
+  company_id: string | null;
+  name: string;
+  slug: string;
+  color: string;
+  position: number;
+  created_at: string;
+};
 
 export type Company = {
   id: string;
@@ -115,10 +125,11 @@ export type FullProposal = ProposalWithClient & { proposal_items: ProposalItem[]
 
 export const companiesQuery = {
   queryKey: ["companies"],
+  staleTime: 5 * 60 * 1000, // 5 min
+  gcTime: 10 * 60 * 1000,
   queryFn: async (): Promise<Company[]> => {
     const { data, error } = await supabase.from("companies").select("*").order("name");
     if (error) {
-      // Fallback para company_settings se a tabela companies ainda não tiver rodado a migration
       const { data: fallback, error: fbErr } = await supabase.from("company_settings").select("*");
       if (fbErr) throw error;
       return (fallback ?? []) as unknown as Company[];
@@ -130,6 +141,8 @@ export const companiesQuery = {
 export const companyByIdQuery = (companyId: string | null | undefined) => ({
   queryKey: ["company", companyId],
   enabled: Boolean(companyId),
+  staleTime: 5 * 60 * 1000, // 5 min
+  gcTime: 10 * 60 * 1000,
   queryFn: async (): Promise<Company | null> => {
     if (!companyId) return null;
     const { data, error } = await supabase
@@ -147,6 +160,8 @@ export const companyByIdQuery = (companyId: string | null | undefined) => ({
 
 export const profilesQuery = {
   queryKey: ["profiles"],
+  staleTime: 1 * 60 * 1000, // 1 min
+  gcTime: 5 * 60 * 1000,
   queryFn: async (): Promise<(Profile & { company: Company | null })[]> => {
     const { data, error } = await supabase
       .from("profiles")
@@ -174,6 +189,8 @@ export const currentProfileQuery = (userId: string | null | undefined) => ({
 
 export const clientsQuery = (companyId?: string | null) => ({
   queryKey: ["clients", companyId],
+  staleTime: 30 * 1000, // 30 sec
+  gcTime: 2 * 60 * 1000,
   queryFn: async (): Promise<Client[]> => {
     let q = supabase.from("clients").select("*").order("name");
     if (companyId) {
@@ -187,6 +204,8 @@ export const clientsQuery = (companyId?: string | null) => ({
 
 export const productsQuery = (companyId?: string | null) => ({
   queryKey: ["products", companyId],
+  staleTime: 2 * 60 * 1000, // 2 min
+  gcTime: 5 * 60 * 1000,
   queryFn: async (): Promise<Product[]> => {
     let q = supabase.from("products").select("*").order("name");
     if (companyId) {
@@ -259,6 +278,8 @@ export const COMPANY: Company = {
 export const companySettingsQuery = {
   queryKey: ["company_settings"],
   retry: false,
+  staleTime: 5 * 60 * 1000, // 5 min
+  gcTime: 10 * 60 * 1000,
   queryFn: async (): Promise<Company | null> => {
     const { data, error } = await supabase
       .from("companies")
@@ -273,3 +294,18 @@ export const companySettingsQuery = {
     return (data as unknown as Company) ?? null;
   },
 };
+
+export const kanbanColumnsQuery = (companyId?: string | null) => ({
+  queryKey: ["kanban_columns", companyId],
+  staleTime: 5 * 60 * 1000, // 5 min
+  gcTime: 10 * 60 * 1000,
+  queryFn: async (): Promise<KanbanColumn[]> => {
+    let q = supabase.from("kanban_columns").select("*").order("position");
+    if (companyId) {
+      q = q.eq("company_id", companyId);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []) as unknown as KanbanColumn[];
+  },
+});

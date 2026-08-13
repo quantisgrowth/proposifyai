@@ -14,6 +14,11 @@ import {
   FileText,
   Upload,
   X,
+  LayoutGrid,
+  ChevronUp,
+  ChevronDown,
+  Plus,
+  Palette,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -41,9 +46,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   companiesQuery,
   profilesQuery,
+  kanbanColumnsQuery,
   type Company,
   type Profile,
   type UserRole,
+  type KanbanColumn,
 } from "@/lib/proposals";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -799,6 +806,378 @@ function CompaniesTab() {
 }
 
 /* =========================================================================
+   3. ABA COLUNAS DO KANBAN (Gerenciamento e Ordenação de Colunas)
+   ========================================================================= */
+
+const colorOptions = [
+  { value: "bg-slate-400", label: "Cinza", class: "bg-slate-400" },
+  { value: "bg-blue-500", label: "Azul", class: "bg-blue-500" },
+  { value: "bg-emerald-500", label: "Verde", class: "bg-emerald-500" },
+  { value: "bg-destructive", label: "Vermelho", class: "bg-destructive" },
+  { value: "bg-amber-500", label: "Amarelo", class: "bg-amber-500" },
+  { value: "bg-purple-500", label: "Roxo", class: "bg-purple-500" },
+  { value: "bg-pink-500", label: "Rosa", class: "bg-pink-500" },
+  { value: "bg-teal-500", label: "Teal", class: "bg-teal-500" },
+];
+
+function KanbanColumnsTab() {
+  const qc = useQueryClient();
+  const { data: companies } = useQuery(companiesQuery);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
+    return companies?.[0]?.id ?? "";
+  });
+
+  // Atualiza a empresa selecionada quando a lista carregar
+  useEffect(() => {
+    if (!selectedCompanyId && companies && companies.length > 0) {
+      setSelectedCompanyId(companies[0].id);
+    }
+  }, [companies, selectedCompanyId]);
+
+  const { data: columns, isLoading: loadingColumns } = useQuery({
+    ...kanbanColumnsQuery(selectedCompanyId || null),
+    enabled: Boolean(selectedCompanyId),
+  });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingColumn, setEditingColumn] = useState<KanbanColumn | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    slug: "",
+    color: "bg-slate-400",
+  });
+  const [busy, setBusy] = useState(false);
+
+  const openCreateModal = () => {
+    setEditingColumn(null);
+    setForm({
+      name: "",
+      slug: "",
+      color: "bg-blue-500",
+    });
+    setModalOpen(true);
+  };
+
+  const openEditModal = (col: KanbanColumn) => {
+    setEditingColumn(col);
+    setForm({
+      name: col.name,
+      slug: col.slug,
+      color: col.color || "bg-slate-400",
+    });
+    setModalOpen(true);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Apenas gera slug se for criação
+    if (!editingColumn) {
+      const generatedSlug = val
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      setForm((prev) => ({ ...prev, name: val, slug: generatedSlug }));
+    } else {
+      setForm((prev) => ({ ...prev, name: val }));
+    }
+  };
+
+  const handleSaveColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.slug.trim()) {
+      toast.error("Nome e identificador (slug) são obrigatórios.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (editingColumn) {
+        // Atualizar
+        const { error } = await supabase
+          .from("kanban_columns")
+          .update({
+            name: form.name.trim(),
+            color: form.color,
+          })
+          .eq("id", editingColumn.id);
+
+        if (error) throw error;
+        toast.success("Coluna atualizada!");
+      } else {
+        // Criar
+        // Calcular posição de inserção (última)
+        const nextPos = columns ? columns.length : 0;
+
+        const { error } = await supabase.from("kanban_columns").insert({
+          company_id: selectedCompanyId,
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          color: form.color,
+          position: nextPos,
+        });
+
+        if (error) throw error;
+        toast.success("Nova coluna criada com sucesso!");
+      }
+
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+      setModalOpen(false);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Erro ao salvar coluna.";
+      toast.error(errorMsg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteColumn = useMutation({
+    mutationFn: async (col: KanbanColumn) => {
+      // 1. Atualizar propostas desse status para 'draft'
+      const { error: updateError } = await supabase
+        .from("proposals")
+        .update({ status: "draft" })
+        .eq("company_id", col.company_id!)
+        .eq("status", col.slug);
+      if (updateError) throw updateError;
+
+      // 2. Excluir a coluna do banco
+      const { error: deleteError } = await supabase
+        .from("kanban_columns")
+        .delete()
+        .eq("id", col.id);
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("Coluna excluída e propostas migradas para Rascunho");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const moveColumn = async (index: number, direction: "up" | "down") => {
+    if (!columns) return;
+    const otherIndex = direction === "up" ? index - 1 : index + 1;
+    if (otherIndex < 0 || otherIndex >= columns.length) return;
+
+    const colA = columns[index];
+    const colB = columns[otherIndex];
+
+    try {
+      const { error: errA } = await supabase
+        .from("kanban_columns")
+        .update({ position: colB.position })
+        .eq("id", colA.id);
+      if (errA) throw errA;
+
+      const { error: errB } = await supabase
+        .from("kanban_columns")
+        .update({ position: colA.position })
+        .eq("id", colB.id);
+      if (errB) throw errB;
+
+      qc.invalidateQueries({ queryKey: ["kanban_columns"] });
+    } catch (err: any) {
+      toast.error("Erro ao ordenar colunas: " + err.message);
+    }
+  };
+
+  const isCoreColumn = (slug: string) => {
+    return slug === "draft" || slug === "sent";
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Seletor de Empresa */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-secondary/15 p-4 rounded-xl border border-border/80">
+        <div className="flex items-center gap-2">
+          <Building2 className="size-4 text-primary" />
+          <Label className="text-sm font-semibold">Selecione a Empresa:</Label>
+          <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+            <SelectTrigger className="w-[200px] h-9 text-xs bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(companies ?? []).map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button onClick={openCreateModal} className="gap-2 h-9 text-xs">
+          <Plus className="size-3.5" /> Nova Coluna
+        </Button>
+      </div>
+
+      {loadingColumns ? (
+        <div className="text-center text-sm text-muted-foreground py-10">Carregando colunas…</div>
+      ) : (
+        <div className="divide-y divide-border rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          {(columns ?? []).map((col, index) => {
+            const isFirst = index === 0;
+            const isLast = index === (columns ?? []).length - 1;
+            const core = isCoreColumn(col.slug);
+
+            return (
+              <div
+                key={col.id}
+                className="flex items-center justify-between gap-4 p-4 hover:bg-secondary/40 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Marcador de Cor */}
+                  <span className={`size-3.5 rounded-full shrink-0 ${col.color || "bg-slate-400"}`} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-foreground">{col.name}</span>
+                      {core && (
+                        <span className="rounded bg-primary/10 border border-primary/20 px-1 py-0.2 text-[8px] font-bold text-primary uppercase tracking-wider">
+                          Padrão do Sistema
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono text-[10px] text-muted-foreground">slug: {col.slug}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Botões de Ordenação */}
+                  <div className="flex border border-border rounded-lg p-0.5 bg-background shrink-0">
+                    <button
+                      onClick={() => moveColumn(index, "up")}
+                      disabled={isFirst}
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                      title="Subir posição"
+                    >
+                      <ChevronUp className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => moveColumn(index, "down")}
+                      disabled={isLast}
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                      title="Descer posição"
+                    >
+                      <ChevronDown className="size-4" />
+                    </button>
+                  </div>
+
+                  {/* Ações */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(col)}
+                    className="h-8 text-xs cursor-pointer"
+                  >
+                    Editar
+                  </Button>
+
+                  {!core && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm(`Tem certeza que deseja excluir a coluna "${col.name}"? Todas as propostas contidas nela serão movidas automaticamente para "Rascunho".`)) {
+                          deleteColumn.mutate(col);
+                        }
+                      }}
+                      className="size-8 text-muted-foreground hover:text-destructive cursor-pointer"
+                      title="Excluir Coluna"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {(columns ?? []).length === 0 && (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              Nenhuma coluna cadastrada para esta empresa.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal de Nova/Editar Coluna */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editingColumn ? `Editar Coluna "${editingColumn.name}"` : "Nova Coluna do Kanban"}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure as propriedades visuais e de identificação da coluna no fluxo comercial.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveColumn} className="space-y-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Nome da Coluna</Label>
+              <Input
+                value={form.name}
+                onChange={handleNameChange}
+                placeholder="Ex: Em Negociação"
+                required
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Identificador (Slug)</Label>
+              <Input
+                value={form.slug}
+                onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
+                placeholder="ex-em-negociacao"
+                disabled={Boolean(editingColumn)}
+                required
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Código interno único usado no banco de dados. {editingColumn ? "Não é possível alterar após a criação." : "Gerado automaticamente a partir do nome."}
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-semibold text-muted-foreground">Cor do Marcador</Label>
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {colorOptions.map((opt) => (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => setForm((prev) => ({ ...prev, color: opt.value }))}
+                    className={`flex items-center gap-1.5 justify-center px-2 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                      form.color === opt.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-secondary/40 text-muted-foreground"
+                    }`}
+                  >
+                    <span className={`size-2.5 rounded-full ${opt.class}`} />
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? "Salvando..." : editingColumn ? "Salvar Alterações" : "Criar Coluna"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/* =========================================================================
    PÁGINA PRINCIPAL ADMIN
    ========================================================================= */
 
@@ -817,12 +1196,15 @@ function AdminPage() {
       </div>
 
       <Tabs defaultValue="colaboradores" className="mt-6">
-        <TabsList className="grid grid-cols-2 max-w-xs">
+        <TabsList className="grid grid-cols-3 max-w-md">
           <TabsTrigger value="colaboradores" className="gap-2 text-xs">
             <Users className="size-4" /> Colaboradores
           </TabsTrigger>
           <TabsTrigger value="empresas" className="gap-2 text-xs">
             <Building2 className="size-4" /> Empresas
+          </TabsTrigger>
+          <TabsTrigger value="colunas" className="gap-2 text-xs">
+            <LayoutGrid className="size-4" /> Colunas do Kanban
           </TabsTrigger>
         </TabsList>
 
@@ -832,7 +1214,11 @@ function AdminPage() {
         <TabsContent value="empresas" className="mt-6">
           <CompaniesTab />
         </TabsContent>
+        <TabsContent value="colunas" className="mt-6">
+          <KanbanColumnsTab />
+        </TabsContent>
       </Tabs>
     </AppShell>
   );
 }
+

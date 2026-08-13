@@ -47,11 +47,15 @@ import {
   nextProposalCode,
   proposalsQuery,
   companiesQuery,
+  kanbanColumnsQuery,
   type ProposalStatus,
   type ProposalWithClient,
+  type KanbanColumn,
 } from "@/lib/proposals";
 import { brl, shortDate, statusLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
+import { ResizableDialog } from "@/components/ui/resizable-dialog";
+import { ProposalEditor } from "@/components/proposal-editor";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -108,12 +112,15 @@ function ProposalsPage() {
     : profile?.company_id || company?.id || null;
 
   const { data, isLoading } = useQuery(proposalsQuery(activeCompanyFilter));
+  const { data: dbColumns } = useQuery(kanbanColumnsQuery(activeCompanyFilter));
+
   const [term, setTerm] = useState("");
-  const [status, setStatus] = useState<"all" | ProposalStatus>("all");
+  const [status, setStatus] = useState<string>("all");
 
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<ProposalStatus | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [editingProposalCode, setEditingProposalCode] = useState<string | null>(null);
 
   // Share proposal email modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -207,7 +214,7 @@ function ProposalsPage() {
   }, [data, status, term]);
 
   const changeStatus = useMutation({
-    mutationFn: async ({ id, next }: { id: string; next: ProposalStatus }) => {
+    mutationFn: async ({ id, next }: { id: string; next: string }) => {
       const patch =
         next === "sent"
           ? { status: next, sent_at: new Date().toISOString() }
@@ -271,23 +278,50 @@ function ProposalsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const kanbanStatuses: ProposalStatus[] = ["draft", "sent", "accepted", "rejected", "expired"];
+  const columns = useMemo((): { slug: string; name: string; color: string }[] => {
+    if (activeCompanyFilter && dbColumns && dbColumns.length > 0) {
+      return dbColumns.map(col => ({
+        slug: col.slug,
+        name: col.name,
+        color: col.color || "bg-slate-400"
+      }));
+    }
+    return [
+      { slug: "draft", name: "Rascunho", color: "bg-slate-400" },
+      { slug: "sent", name: "Enviada", color: "bg-blue-500" },
+      { slug: "accepted", name: "Ganha (Aceita)", color: "bg-emerald-500" },
+      { slug: "rejected", name: "Perdida (Recusada)", color: "bg-destructive" },
+      { slug: "expired", name: "Expirada", color: "bg-amber-500" }
+    ];
+  }, [dbColumns, activeCompanyFilter]);
+
+  const kanbanStatuses = useMemo(() => columns.map(c => c.slug), [columns]);
+
+  const listFilters = useMemo(() => {
+    const list: Array<{ value: string; label: string }> = [{ value: "all", label: "Todas" }];
+    columns.forEach(c => {
+      list.push({ value: c.slug, label: c.name });
+    });
+    return list;
+  }, [columns]);
 
   const columnsData = useMemo(() => {
-    const groups: Record<ProposalStatus, ProposalWithClient[]> = {
-      draft: [],
-      sent: [],
-      accepted: [],
-      rejected: [],
-      expired: [],
-    };
+    const groups: Record<string, ProposalWithClient[]> = {};
+    columns.forEach(col => {
+      groups[col.slug] = [];
+    });
     rows.forEach((p) => {
       if (groups[p.status]) {
         groups[p.status].push(p);
+      } else {
+        const firstSlug = columns[0]?.slug || "draft";
+        if (groups[firstSlug]) {
+          groups[firstSlug].push(p);
+        }
       }
     });
     return groups;
-  }, [rows]);
+  }, [rows, columns]);
 
   return (
     <AppShell>
@@ -366,7 +400,7 @@ function ProposalsPage() {
 
           {viewMode === "list" && (
             <div className="flex flex-wrap gap-1">
-              {filters.map((f) => (
+              {listFilters.map((f) => (
                 <button
                   key={f.value}
                   onClick={() => setStatus(f.value)}
@@ -408,16 +442,10 @@ function ProposalsPage() {
                 <div className="flex items-center justify-between pb-3 mb-4 border-b border-border/60">
                   <div className="flex items-center gap-2">
                     <span className={`size-2 rounded-full ${
-                      colStatus === "draft" ? "bg-slate-400" :
-                      colStatus === "sent" ? "bg-blue-500" :
-                      colStatus === "accepted" ? "bg-emerald-500" :
-                      colStatus === "rejected" ? "bg-destructive" :
-                      "bg-amber-500"
+                      columns.find(c => c.slug === colStatus)?.color || "bg-slate-400"
                     }`} />
                     <span className="font-semibold text-xs text-foreground uppercase tracking-wide">
-                      {colStatus === "accepted" ? "Ganha (Aceita)" :
-                       colStatus === "rejected" ? "Perdida (Recusada)" :
-                       statusLabel[colStatus] ?? colStatus}
+                      {columns.find(c => c.slug === colStatus)?.name || colStatus}
                     </span>
                     <span className="rounded-full bg-secondary/80 text-muted-foreground px-1.5 py-0.2 text-[9px] font-bold tabular-nums">
                       {columnProposals.length}
@@ -476,7 +504,7 @@ function ProposalsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() =>
-                                  navigate({ to: "/nova", search: { edit: p.proposal_code } })
+                                  setEditingProposalCode(p.proposal_code)
                                 }
                               >
                                 Editar
@@ -501,15 +529,15 @@ function ProposalsPage() {
                                 Duplicar
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              {kanbanStatuses
-                                .filter((s) => s !== p.status)
+                              {columns
+                                .filter((s) => s.slug !== p.status)
                                 .map((s) => (
                                   <DropdownMenuItem
-                                    key={s}
-                                    onClick={() => changeStatus.mutate({ id: p.id, next: s })}
+                                    key={s.slug}
+                                    onClick={() => changeStatus.mutate({ id: p.id, next: s.slug })}
                                     className="text-xs text-muted-foreground"
                                   >
-                                    Mover para {(statusLabel[s] ?? s).toLowerCase()}
+                                    Mover para {s.name.toLowerCase()}
                                   </DropdownMenuItem>
                                 ))}
                             </DropdownMenuContent>
@@ -584,8 +612,15 @@ function ProposalsPage() {
                     <td className="px-4 py-3 text-muted-foreground">{p.sent_at ? shortDate(p.sent_at) : "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{shortDate(p.validity_date)}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="outline" className={`font-normal ${statusStyles[p.status]}`}>
-                        {statusLabel[p.status] ?? p.status}
+                      <Badge variant="outline" className={`font-normal ${
+                        p.status === "draft" ? "border-border bg-secondary text-muted-foreground" :
+                        p.status === "sent" ? "border-foreground/20 bg-foreground/5 text-foreground" :
+                        p.status === "accepted" ? "border-emerald-600/30 bg-emerald-600/10 text-emerald-700" :
+                        p.status === "rejected" ? "border-destructive/30 bg-destructive/10 text-destructive" :
+                        p.status === "expired" ? "border-amber-600/30 bg-amber-600/10 text-amber-700" :
+                        "border-border bg-secondary text-muted-foreground"
+                      }`}>
+                        {columns.find(c => c.slug === p.status)?.name ?? p.status}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -608,7 +643,7 @@ function ProposalsPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() =>
-                              navigate({ to: "/nova", search: { edit: p.proposal_code } })
+                              setEditingProposalCode(p.proposal_code)
                             }
                           >
                             Editar
@@ -633,14 +668,14 @@ function ProposalsPage() {
                             Duplicar
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {(["draft", "sent", "accepted", "rejected", "expired"] as ProposalStatus[])
-                            .filter((s) => s !== p.status)
+                          {columns
+                            .filter((s) => s.slug !== p.status)
                             .map((s) => (
                               <DropdownMenuItem
-                                key={s}
-                                onClick={() => changeStatus.mutate({ id: p.id, next: s })}
+                                key={s.slug}
+                                onClick={() => changeStatus.mutate({ id: p.id, next: s.slug })}
                               >
-                                Marcar como {(statusLabel[s] ?? s).toLowerCase()}
+                                Marcar como {s.name.toLowerCase()}
                               </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
@@ -720,6 +755,28 @@ function ProposalsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Modal Redimensionável para Edição de Proposta */}
+      <ResizableDialog
+        open={Boolean(editingProposalCode)}
+        onOpenChange={(open) => {
+          if (!open) setEditingProposalCode(null);
+        }}
+        title={`Editar Proposta ${editingProposalCode}`}
+        description="Atualize as informações comerciais e salve como rascunho."
+      >
+        {editingProposalCode && (
+          <div className="p-6 h-full flex flex-col overflow-hidden">
+            <ProposalEditor
+              proposalCode={editingProposalCode}
+              onSaveSuccess={() => {
+                setEditingProposalCode(null);
+                qc.invalidateQueries({ queryKey: ["proposals"] });
+              }}
+              onCancel={() => setEditingProposalCode(null)}
+            />
+          </div>
+        )}
+      </ResizableDialog>
     </AppShell>
   );
 }

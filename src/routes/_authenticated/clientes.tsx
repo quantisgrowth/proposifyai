@@ -166,7 +166,7 @@ function ClientsPage() {
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ");
       } else {
-        contactName = prev.contact_name || "Responsável Legal";
+        contactName = "Responsável Legal";
       }
 
       setForm((prev) => ({

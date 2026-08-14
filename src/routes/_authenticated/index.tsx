@@ -290,6 +290,7 @@ function ProposalsPage() {
 
     const colA = dbColumns[index];
     const colB = dbColumns[otherIndex];
+    if (!colA || !colB) return;
 
     try {
       const { error: errA } = await supabase
@@ -597,8 +598,9 @@ function ProposalsPage() {
       groups[col.slug] = [];
     });
     rows.forEach((p) => {
-      if (groups[p.status]) {
-        groups[p.status].push(p);
+      const bucket = groups[p.status];
+      if (bucket) {
+        bucket.push(p);
       } else {
         const firstSlug = columns[0]?.slug || "draft";
         if (groups[firstSlug]) {
@@ -839,7 +841,7 @@ function ProposalsPage() {
                             {showCompanyBadge && (
                               <span className="inline-flex items-center gap-1 self-start rounded bg-primary/10 px-1.5 py-0.2 text-[8px] font-medium text-primary">
                                 <Building2 className="size-2 shrink-0" />
-                                {p.companies.name}
+                                {p.companies?.name}
                               </span>
                             )}
                           </div>

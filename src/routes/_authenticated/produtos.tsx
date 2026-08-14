@@ -136,7 +136,7 @@ function ProductsPage() {
   const updateTier = (idx: number, patch: Partial<PricingTier>) => {
     setForm((prev) => {
       const next = [...prev.pricing_tiers];
-      next[idx] = { ...next[idx], ...patch };
+      next[idx] = { range: "", price: 0, ...next[idx], ...patch };
       return { ...prev, pricing_tiers: next };
     });
   };

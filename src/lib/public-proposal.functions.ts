@@ -101,7 +101,7 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
     }
 
     // 4. Enviar e-mail de notificação (ex: via Resend se a API Key estiver configurada)
-    const resendApiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
+    const resendApiKey = process.env['RESEND_API_KEY'] || process.env['VITE_RESEND_API_KEY'];
     if (resendApiKey) {
       try {
         const formattedValue = Number(proposal.net_amount).toLocaleString("pt-BR", {

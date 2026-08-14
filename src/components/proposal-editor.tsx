@@ -132,14 +132,14 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
   useEffect(() => {
     if (!selectedCompanyId && companies && companies.length > 0 && !profile?.company_id) {
       const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
-      setSelectedCompanyId(defaultComp.id);
+      if (defaultComp) setSelectedCompanyId(defaultComp.id);
     }
   }, [companies, selectedCompanyId, profile?.company_id]);
 
   const fallbackCompanyId = useMemo(() => {
     if (companies && companies.length > 0) {
       const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
-      return defaultComp.id;
+      return defaultComp?.id ?? null;
     }
     return null;
   }, [companies]);

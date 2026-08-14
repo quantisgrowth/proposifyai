@@ -34,7 +34,7 @@ const allNavItems = [
   { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal, adminOnly: true },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
@@ -292,7 +292,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Main Content Area */}
         <main className="flex-1 min-w-0 px-4 py-6 sm:px-8 sm:py-8 lg:px-10">
-          <div className="mx-auto max-w-6xl">{children}</div>
+          <div className={`mx-auto ${wide ? "max-w-full" : "max-w-6xl"}`}>{children}</div>
         </main>
       </div>
     </div>

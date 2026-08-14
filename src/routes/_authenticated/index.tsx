@@ -16,6 +16,8 @@ import {
   ChevronRight,
   Trash2,
   Settings,
+  SlidersHorizontal,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -54,9 +56,11 @@ import {
   companiesQuery,
   kanbanColumnsQuery,
   proposalByCodeQuery,
+  profilesQuery,
   type ProposalStatus,
   type ProposalWithClient,
   type KanbanColumn,
+  type Company,
 } from "@/lib/proposals";
 import { brl, shortDate, statusLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
@@ -74,6 +78,17 @@ const colorOptions = [
   { value: "bg-pink-500", label: "Rosa", class: "bg-pink-500" },
   { value: "bg-teal-500", label: "Teal", class: "bg-teal-500" },
 ];
+
+const colorBorderMap: Record<string, string> = {
+  "bg-slate-400": "border-t-slate-400",
+  "bg-blue-500": "border-t-blue-500",
+  "bg-emerald-500": "border-t-emerald-500",
+  "bg-destructive": "border-t-red-500",
+  "bg-amber-500": "border-t-amber-500",
+  "bg-purple-500": "border-t-purple-500",
+  "bg-pink-500": "border-t-pink-500",
+  "bg-teal-500": "border-t-teal-500",
+};
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -116,6 +131,7 @@ function ProposalsPage() {
   const qc = useQueryClient();
   const { profile, company, isAdmin } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
+  const { data: profiles } = useQuery(profilesQuery);
 
   // Filter state for company select (admins only)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
@@ -129,7 +145,13 @@ function ProposalsPage() {
       : selectedCompanyId
     : profile?.company_id || company?.id || null;
 
-  const { data, isLoading } = useQuery(proposalsQuery(activeCompanyFilter));
+  const activeCompanySettings = useMemo(() => {
+    return (companies ?? []).find((c) => c.id === activeCompanyFilter) || company;
+  }, [companies, activeCompanyFilter, company]);
+
+  const onlyViewOwn = !isAdmin && Boolean(activeCompanySettings?.only_view_own_proposals);
+
+  const { data, isLoading } = useQuery(proposalsQuery(activeCompanyFilter, onlyViewOwn, profile?.id));
   const { data: dbColumns } = useQuery(kanbanColumnsQuery(activeCompanyFilter));
 
   const [term, setTerm] = useState("");
@@ -145,6 +167,114 @@ function ProposalsPage() {
   const [columnModalOpen, setColumnModalOpen] = useState(false);
   const [columnForm, setColumnForm] = useState({ name: "", slug: "", color: "bg-blue-500" });
   const [savingColumn, setSavingColumn] = useState(false);
+
+  // New admin rules, deletion permissions, and loss reason states
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [lossModalOpen, setLossModalOpen] = useState(false);
+  const [lossProposalId, setLossProposalId] = useState<string | null>(null);
+  const [lossForm, setLossForm] = useState({ reason: "Preço", description: "" });
+
+  const getInactivityDays = (proposal: ProposalWithClient) => {
+    const date = proposal.sent_at ? new Date(proposal.sent_at) : new Date(proposal.created_at);
+    const diffTime = Math.abs(new Date().getTime() - date.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const deleteProposal = useMutation({
+    mutationFn: async (proposalId: string) => {
+      const { error } = await supabase.from("proposals").delete().eq("id", proposalId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("Proposta excluída com sucesso!");
+    },
+    onError: (e: Error) => toast.error("Erro ao excluir proposta: " + e.message),
+  });
+
+  const updateCompanySettings = useMutation({
+    mutationFn: async (payload: Partial<Company>) => {
+      if (!activeCompanyFilter || activeCompanyFilter === "all") return;
+      const { error } = await supabase
+        .from("companies")
+        .update(payload)
+        .eq("id", activeCompanyFilter);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("Configurações do pipeline atualizadas!");
+    },
+    onError: (e: Error) => toast.error("Erro ao salvar configurações: " + e.message),
+  });
+
+  const updateCollaboratorCompany = useMutation({
+    mutationFn: async ({ profileId, companyId }: { profileId: string; companyId: string | null }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ company_id: companyId })
+        .eq("id", profileId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profiles"] });
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      toast.success("Colaborador reatribuído!");
+    },
+    onError: (e: Error) => toast.error("Erro ao reatribuir colaborador: " + e.message),
+  });
+
+  const createCompany = useMutation({
+    mutationFn: async (newCompany: { name: string; tagline?: string }) => {
+      const { data: comp, error } = await supabase
+        .from("companies")
+        .insert({
+          name: newCompany.name,
+          tagline: newCompany.tagline || "",
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return comp;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Novo funil de vendas criado!");
+    },
+    onError: (e: Error) => toast.error("Erro ao criar funil: " + e.message),
+  });
+
+  const canDeleteProposal = (p: ProposalWithClient) => {
+    if (isAdmin) return true;
+    if (!activeCompanySettings?.block_proposal_deletion) return true;
+    const allowedUsers = activeCompanySettings?.delete_allowed_users || [];
+    return profile?.id && allowedUsers.includes(profile.id);
+  };
+
+  const triggerStatusChange = (id: string, next: string) => {
+    if (next === "rejected") {
+      setLossProposalId(id);
+      setLossForm({ reason: "Preço", description: "" });
+      setLossModalOpen(true);
+    } else {
+      changeStatus.mutate({ id, next });
+    }
+  };
+
+  const handleSaveLossReason = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (lossProposalId) {
+      changeStatus.mutate({
+        id: lossProposalId,
+        next: "rejected",
+        lossReason: lossForm.reason,
+        lossDescription: lossForm.description,
+      });
+      setLossModalOpen(false);
+      setLossProposalId(null);
+    }
+  };
 
   const isCompanySelected = activeCompanyFilter !== null;
 
@@ -352,7 +482,7 @@ function ProposalsPage() {
     if (id) {
       const proposal = (data ?? []).find((p) => p.id === id);
       if (proposal && proposal.status !== colStatus) {
-        changeStatus.mutate({ id, next: colStatus });
+        triggerStatusChange(id, colStatus);
       }
     }
   };
@@ -366,11 +496,15 @@ function ProposalsPage() {
   }, [data, status, term]);
 
   const changeStatus = useMutation({
-    mutationFn: async ({ id, next }: { id: string; next: string }) => {
-      const patch =
-        next === "sent"
-          ? { status: next, sent_at: new Date().toISOString() }
-          : { status: next };
+    mutationFn: async ({ id, next, lossReason, lossDescription }: { id: string; next: string; lossReason?: string; lossDescription?: string }) => {
+      const patch: any = { status: next };
+      if (next === "sent") {
+        patch.sent_at = new Date().toISOString();
+      }
+      if (next === "rejected") {
+        patch.loss_reason = lossReason || null;
+        patch.loss_description = lossDescription || null;
+      }
       const { error } = await supabase.from("proposals").update(patch).eq("id", id);
       if (error) throw error;
     },
@@ -476,7 +610,7 @@ function ProposalsPage() {
   }, [rows, columns]);
 
   return (
-    <AppShell>
+    <AppShell wide={viewMode === "kanban"}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 sm:flex sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Propostas</h1>
@@ -486,6 +620,18 @@ function ProposalsPage() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              onClick={() => setAdminMenuOpen(true)}
+              title="Configurações Administrativas do Funil"
+            >
+              <Settings className="size-4" />
+            </Button>
+          )}
+
           <div className="flex border border-border rounded-lg p-0.5 bg-secondary/35 text-muted-foreground">
             <button
               type="button"
@@ -577,6 +723,8 @@ function ProposalsPage() {
           {kanbanStatuses.map((colStatus) => {
             const columnProposals = columnsData[colStatus] || [];
             const columnTotal = columnProposals.reduce((sum, p) => sum + Number(p.net_amount), 0);
+            const colColorClass = columns.find(c => c.slug === colStatus)?.color || "bg-slate-400";
+            const borderTopColorClass = colorBorderMap[colColorClass] || "border-t-slate-400";
 
             return (
               <div
@@ -584,7 +732,7 @@ function ProposalsPage() {
                 onDragOver={(e) => handleDragOver(e, colStatus)}
                 onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => handleDrop(e, colStatus)}
-                className={`flex flex-col min-w-[280px] w-full max-w-[340px] rounded-xl border p-4 bg-card/40 backdrop-blur-sm transition-all duration-200 ${
+                className={`flex flex-col min-w-[245px] flex-1 max-w-[350px] rounded-xl border border-t-[5px] p-4 bg-card/40 backdrop-blur-sm transition-all duration-200 ${borderTopColorClass} ${
                   dragOverColumn === colStatus
                     ? "border-primary bg-primary/5 ring-2 ring-primary/10 shadow-md"
                     : "border-border/70"
@@ -736,13 +884,28 @@ function ProposalsPage() {
                               <DropdownMenuItem onClick={() => duplicate.mutate(p)}>
                                 Duplicar
                               </DropdownMenuItem>
+                              {canDeleteProposal(p) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (confirm(`Deseja realmente excluir a proposta ${p.proposal_code}?`)) {
+                                        deleteProposal.mutate(p.id);
+                                      }
+                                    }}
+                                    className="text-destructive focus:text-destructive cursor-pointer text-xs"
+                                  >
+                                    <Trash2 className="size-3.5 mr-2 shrink-0" /> Excluir Proposta
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                               <DropdownMenuSeparator />
                               {columns
                                 .filter((s) => s.slug !== p.status)
                                 .map((s) => (
                                   <DropdownMenuItem
                                     key={s.slug}
-                                    onClick={() => changeStatus.mutate({ id: p.id, next: s.slug })}
+                                    onClick={() => triggerStatusChange(p.id, s.slug)}
                                     className="text-xs text-muted-foreground"
                                   >
                                     Mover para {s.name.toLowerCase()}
@@ -755,6 +918,29 @@ function ProposalsPage() {
                         <h4 className="mt-2 font-semibold text-xs text-foreground line-clamp-2">
                           {p.clients?.name ?? "—"}
                         </h4>
+
+                        {p.status === "rejected" && p.loss_reason && (
+                          <div className="mt-2 text-[10px] text-destructive bg-destructive/5 px-2.5 py-1.5 rounded-lg border border-destructive/10 font-medium">
+                            <span className="font-bold">Motivo:</span> {p.loss_reason}
+                            {p.loss_description && (
+                              <span className="block text-[9px] font-normal text-muted-foreground mt-0.5 leading-normal">
+                                {p.loss_description}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {(() => {
+                          const inactiveDays = getInactivityDays(p);
+                          const isInactive = p.status !== "accepted" && p.status !== "rejected" && p.status !== "expired" && inactiveDays > 7;
+                          if (!isInactive) return null;
+                          return (
+                            <div className="mt-2 flex items-center gap-1.5 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/25">
+                              <Clock className="size-3 shrink-0 text-amber-500" />
+                              <span>Inativo há {inactiveDays} dias</span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="mt-4 flex items-end justify-between border-t border-border/40 pt-2">
                           <div className="space-y-0.5">
@@ -887,13 +1073,28 @@ function ProposalsPage() {
                           <DropdownMenuItem onClick={() => duplicate.mutate(p)}>
                             Duplicar
                           </DropdownMenuItem>
+                          {canDeleteProposal(p) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (confirm(`Deseja realmente excluir a proposta ${p.proposal_code}?`)) {
+                                    deleteProposal.mutate(p.id);
+                                  }
+                                }}
+                                className="text-destructive focus:text-destructive cursor-pointer"
+                              >
+                                <Trash2 className="size-4 mr-2 shrink-0" /> Excluir
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuSeparator />
                           {columns
                             .filter((s) => s.slug !== p.status)
                             .map((s) => (
                               <DropdownMenuItem
                                 key={s.slug}
-                                onClick={() => changeStatus.mutate({ id: p.id, next: s.slug })}
+                                onClick={() => triggerStatusChange(p.id, s.slug)}
                               >
                                 Marcar como {s.name.toLowerCase()}
                               </DropdownMenuItem>
@@ -1154,6 +1355,373 @@ function ProposalsPage() {
               </Button>
               <Button type="submit" disabled={savingColumn}>
                 {savingColumn ? "Salvando..." : "Criar Etapa"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Administrativo do Funil */}
+      <Dialog open={adminMenuOpen} onOpenChange={setAdminMenuOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-card">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-card/50">
+            <DialogTitle className="flex items-center gap-2 font-bold text-lg text-foreground">
+              <SlidersHorizontal className="size-5 text-primary" /> Painel do Administrador: {activeCompanySettings?.name || "Pipeline"}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Gerencie regras, acessos, permissões, atendentes e etapas do funil de vendas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs defaultValue="regras" className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-6 border-b border-border bg-muted/20">
+              <TabsList className="grid grid-cols-4 max-w-full my-2 bg-secondary/50 p-1">
+                <TabsTrigger value="regras" className="text-xs py-1.5 cursor-pointer">Regras</TabsTrigger>
+                <TabsTrigger value="atendentes" className="text-xs py-1.5 cursor-pointer">Atendentes</TabsTrigger>
+                <TabsTrigger value="etapas" className="text-xs py-1.5 cursor-pointer">Etapas</TabsTrigger>
+                <TabsTrigger value="funis" className="text-xs py-1.5 cursor-pointer">Funis</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <TabsContent value="regras" className="space-y-5 mt-0">
+                {activeCompanyFilter === null || activeCompanyFilter === "all" ? (
+                  <div className="text-center p-6 border border-dashed rounded-lg text-xs text-muted-foreground">
+                    Selecione uma empresa específica no filtro da página para gerenciar as regras do seu funil.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Visualização Restrita */}
+                    <div className="flex items-start justify-between gap-4 p-3 rounded-lg border border-border bg-secondary/15">
+                      <div className="space-y-0.5 min-w-0">
+                        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          Visualização Restrita para Vendedores
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground leading-normal">
+                          Vendedores (colaboradores comerciais) só poderão visualizar e movimentar as propostas que eles mesmos criaram.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(activeCompanySettings?.only_view_own_proposals)}
+                        onChange={(e) => {
+                          updateCompanySettings.mutate({ only_view_own_proposals: e.target.checked });
+                        }}
+                        className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Obrigatoriedade de Campos */}
+                    <div className="flex items-start justify-between gap-4 p-3 rounded-lg border border-border bg-secondary/15">
+                      <div className="space-y-0.5 min-w-0">
+                        <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          Obrigatoriedade de Todos os Campos
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground leading-normal">
+                          Exige o preenchimento de todos os campos (campanha, solução, validade, condições) antes de salvar a proposta comercial.
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(activeCompanySettings?.require_all_fields)}
+                        onChange={(e) => {
+                          updateCompanySettings.mutate({ require_all_fields: e.target.checked });
+                        }}
+                        className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Bloqueio de Exclusão */}
+                    <div className="space-y-3 p-3 rounded-lg border border-border bg-secondary/15">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-0.5 min-w-0">
+                          <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            Bloquear Exclusão de Negócios / Propostas
+                          </Label>
+                          <p className="text-[10px] text-muted-foreground leading-normal">
+                            Impede colaboradores comerciais de excluir propostas do sistema, a menos que tenham permissão explícita.
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(activeCompanySettings?.block_proposal_deletion)}
+                          onChange={(e) => {
+                            updateCompanySettings.mutate({ block_proposal_deletion: e.target.checked });
+                          }}
+                          className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
+                        />
+                      </div>
+
+                      {activeCompanySettings?.block_proposal_deletion && (
+                        <div className="pt-3 border-t border-border/60">
+                          <Label className="text-[10px] font-semibold text-foreground uppercase tracking-wide block mb-2">
+                            Colaboradores com permissão de exclusão:
+                          </Label>
+                          <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                            {(profiles ?? [])
+                              .filter((p) => p.company_id === activeCompanyFilter)
+                              .map((p) => {
+                                const isAllowed = (activeCompanySettings?.delete_allowed_users || []).includes(p.id);
+                                return (
+                                  <div key={p.id} className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`allow-delete-${p.id}`}
+                                      checked={isAllowed}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        const current = activeCompanySettings?.delete_allowed_users || [];
+                                        const next = checked
+                                          ? [...current, p.id]
+                                          : current.filter((id) => id !== p.id);
+                                        updateCompanySettings.mutate({ delete_allowed_users: next });
+                                      }}
+                                      className="rounded border-border text-primary focus:ring-primary size-3.5 cursor-pointer"
+                                    />
+                                    <Label htmlFor={`allow-delete-${p.id}`} className="text-xs cursor-pointer text-foreground/80 hover:text-foreground">
+                                      {p.full_name || p.email}
+                                    </Label>
+                                  </div>
+                                );
+                              })}
+                            {(profiles ?? []).filter((p) => p.company_id === activeCompanyFilter).length === 0 && (
+                              <p className="text-[10px] text-muted-foreground italic">Nenhum colaborador vinculado a este funil.</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="atendentes" className="space-y-4 mt-0">
+                <div className="text-xs text-muted-foreground pb-2">
+                  Atribua colaboradores e vendedores para funis (empresas) específicos.
+                </div>
+                <div className="space-y-3 divide-y divide-border/60 max-h-[400px] overflow-y-auto pr-1">
+                  {(profiles ?? []).map((prof) => (
+                    <div key={prof.id} className="flex items-center justify-between py-2.5 first:pt-0">
+                      <div className="min-w-0 pr-2">
+                        <p className="text-xs font-semibold text-foreground truncate">{prof.full_name || prof.email}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{prof.email}</p>
+                      </div>
+                      <select
+                        value={prof.company_id || ""}
+                        onChange={(e) => {
+                          const val = e.target.value || null;
+                          updateCollaboratorCompany.mutate({ profileId: prof.id, companyId: val });
+                        }}
+                        className="text-xs rounded border border-border bg-background px-2.5 py-1.5 w-[200px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shrink-0"
+                      >
+                        <option value="">Sem Funil</option>
+                        {(companies ?? []).map((comp) => (
+                          <option key={comp.id} value={comp.id}>
+                            {comp.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="etapas" className="space-y-4 mt-0">
+                {activeCompanyFilter === null || activeCompanyFilter === "all" ? (
+                  <div className="text-center p-6 border border-dashed rounded-lg text-xs text-muted-foreground">
+                    Selecione uma empresa específica no filtro da página para gerenciar as etapas do seu funil.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Etapas ordenadas do funil atual</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 text-xs font-semibold"
+                        onClick={() => {
+                          setAdminMenuOpen(false); // Close admin panel
+                          openAddColumnModal(); // Open column modal
+                        }}
+                      >
+                        <Plus className="size-3.5 mr-1" /> Adicionar Etapa
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                      {columns.map((col, idx) => {
+                        const isDefault = col.slug === "draft" || col.slug === "sent";
+                        const dbCol = dbColumns?.find(c => c.slug === col.slug);
+                        
+                        return (
+                          <div key={col.slug} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card shadow-sm">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`size-3 rounded-full shrink-0 ${col.color}`} />
+                              <span className="font-semibold text-xs text-foreground truncate">{col.name}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase">({col.slug})</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {dbCol && (
+                                <>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleMoveColumn(idx, "left")}
+                                    disabled={idx === 0}
+                                    title="Mover para Cima (Esquerda)"
+                                  >
+                                    <ChevronLeft className="size-3.5 rotate-90" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleMoveColumn(idx, "right")}
+                                    disabled={idx === columns.length - 1}
+                                    title="Mover para Baixo (Direita)"
+                                  >
+                                    <ChevronRight className="size-3.5 rotate-90" />
+                                  </Button>
+                                </>
+                              )}
+
+                              {dbCol && !isDefault && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    handleDeleteColumn(dbCol);
+                                  }}
+                                  title="Excluir Etapa"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="funis" className="space-y-4 mt-0">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-foreground">Criar Novo Funil de Vendas (Empresa)</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1">
+                      <Label className="text-[10px] text-muted-foreground">Nome do Funil / Empresa</Label>
+                      <Input
+                        id="new-funnel-name"
+                        placeholder="Ex: Frotlog Transportes"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px] text-muted-foreground">Slogan / Tagline</Label>
+                      <Input
+                        id="new-funnel-tagline"
+                        placeholder="Ex: Carga e descarga inteligente"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 text-xs font-semibold"
+                    onClick={() => {
+                      const nameInput = document.getElementById("new-funnel-name") as HTMLInputElement;
+                      const taglineInput = document.getElementById("new-funnel-tagline") as HTMLInputElement;
+                      if (!nameInput?.value.trim()) {
+                        toast.error("Nome do funil é obrigatório.");
+                        return;
+                      }
+                      createCompany.mutate({
+                        name: nameInput.value.trim(),
+                        tagline: taglineInput?.value.trim() || "",
+                      });
+                      nameInput.value = "";
+                      if (taglineInput) taglineInput.value = "";
+                    }}
+                  >
+                    Criar Funil
+                  </Button>
+                </div>
+
+                <div className="pt-3 border-t border-border/80">
+                  <h4 className="text-xs font-semibold text-foreground mb-2">Funis Cadastrados</h4>
+                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                    {(companies ?? []).map((comp) => (
+                      <div key={comp.id} className="flex items-center justify-between text-xs p-2.5 rounded bg-secondary/30">
+                        <span className="font-medium text-foreground">{comp.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{comp.tagline || "Sem slogan"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            </div>
+
+            <DialogFooter className="px-6 py-3 border-t border-border bg-muted/20">
+              <Button onClick={() => setAdminMenuOpen(false)} variant="outline" size="sm" className="text-xs">
+                Fechar
+              </Button>
+            </DialogFooter>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Motivo de Perda */}
+      <Dialog open={lossModalOpen} onOpenChange={setLossModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-bold text-lg text-foreground text-destructive">
+              Registrar Motivo de Perda
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Por favor, informe o motivo pelo qual esta proposta comercial foi recusada/perdida.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveLossReason} className="space-y-4 py-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Motivo Principal</Label>
+              <select
+                value={lossForm.reason}
+                onChange={(e) => setLossForm((prev) => ({ ...prev, reason: e.target.value }))}
+                className="text-xs rounded border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer w-full"
+              >
+                <option value="Preço">Preço alto / Sem orçamento</option>
+                <option value="Concorrente">Perdido para concorrente</option>
+                <option value="Prazo">Prazo de entrega / Cronograma</option>
+                <option value="Escopo">Escopo / Falta de funcionalidades</option>
+                <option value="Postergado">Decisão adiada pelo cliente</option>
+                <option value="Outro">Outro motivo</option>
+              </select>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">Detalhes / Observações (Opcional)</Label>
+              <Textarea
+                rows={3}
+                value={lossForm.description}
+                onChange={(e) => setLossForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Descreva brevemente o feedback do cliente..."
+                className="text-xs"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setLossModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="destructive">
+                Confirmar Perda
               </Button>
             </DialogFooter>
           </form>

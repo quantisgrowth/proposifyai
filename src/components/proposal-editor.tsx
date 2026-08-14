@@ -346,6 +346,38 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       toast.error("Adicione ao menos um item ao escopo");
       return null;
     }
+
+    if (activeCompany?.require_all_fields) {
+      if (!campaignName.trim()) {
+        toast.error("O campo 'Campanha' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!solutionName.trim()) {
+        toast.error("O campo 'Solução' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!objectiveText.trim()) {
+        toast.error("O campo 'Objetivo' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!fidelityPolicy.trim()) {
+        toast.error("O campo 'Fidelidade' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!nextStepsText.trim()) {
+        toast.error("O campo 'Próximos Passos' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!validity) {
+        toast.error("O campo 'Validade' é obrigatório para esta empresa.");
+        return null;
+      }
+      if (!paymentTerms) {
+        toast.error("O campo 'Condição de Pagamento' é obrigatório para esta empresa.");
+        return null;
+      }
+    }
+
     if (!silent) setSaving(true);
 
     try {

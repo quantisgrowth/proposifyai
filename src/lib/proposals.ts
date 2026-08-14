@@ -32,6 +32,10 @@ export type Company = {
   default_payment_terms: string;
   created_at: string;
   updated_at: string;
+  only_view_own_proposals?: boolean;
+  require_all_fields?: boolean;
+  block_proposal_deletion?: boolean;
+  delete_allowed_users?: string[];
 };
 
 export type Profile = {
@@ -98,6 +102,8 @@ export type Proposal = {
   status: ProposalStatus;
   sent_at: string | null;
   created_at: string;
+  loss_reason?: string | null;
+  loss_description?: string | null;
 };
 
 export type ProposalItem = {
@@ -217,8 +223,8 @@ export const productsQuery = (companyId?: string | null) => ({
   },
 });
 
-export const proposalsQuery = (companyId?: string | null) => ({
-  queryKey: ["proposals", companyId],
+export const proposalsQuery = (companyId?: string | null, onlyViewOwn?: boolean, userId?: string | null) => ({
+  queryKey: ["proposals", companyId, onlyViewOwn, userId],
   queryFn: async (): Promise<ProposalWithClient[]> => {
     let q = supabase
       .from("proposals")
@@ -226,6 +232,9 @@ export const proposalsQuery = (companyId?: string | null) => ({
       .order("created_at", { ascending: false });
     if (companyId) {
       q = q.eq("company_id", companyId);
+    }
+    if (onlyViewOwn && userId) {
+      q = q.eq("created_by", userId);
     }
     const { data, error } = await q;
     if (error) throw error;

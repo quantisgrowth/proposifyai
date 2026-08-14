@@ -21,6 +21,7 @@ import { ProposalDocument } from "@/components/proposal-document";
 import { supabase } from "@/integrations/supabase/client";
 import { proposalByCodeQuery } from "@/lib/proposals";
 import { getPublicProposal } from "@/lib/public-proposal.functions";
+import type { FullProposal } from "@/lib/proposals";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Rascunho",
+  sent: "Enviada",
+  accepted: "Aceita",
+  rejected: "Recusada",
+  expired: "Expirada",
+};
 
 type Search = { print?: boolean };
 
@@ -83,7 +92,7 @@ function ProposalView() {
     queryFn: async () => {
       const { data: session } = await supabase.auth.getSession();
       if (session.session) return proposalByCodeQuery(code).queryFn();
-      return getPublicProposal({ data: code });
+      return (await getPublicProposal({ data: code })) as unknown as FullProposal | null;
     },
   });
 
@@ -191,9 +200,11 @@ function ProposalView() {
     try {
       const { acceptProposalServer } = await import("@/lib/public-proposal.functions");
       const result = await acceptProposalServer({
-        code,
-        signerName: signerName.trim(),
-        signerEmail: signerEmail.trim(),
+        data: {
+          code,
+          signerName: signerName.trim(),
+          signerEmail: signerEmail.trim(),
+        },
       });
 
       if (result.success) {
@@ -329,7 +340,7 @@ function ProposalView() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Status da proposta:</span>
             <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              {statusLabel[data.status] ?? data.status}
+              {STATUS_LABELS[data.status] ?? data.status}
             </span>
           </div>
         )}

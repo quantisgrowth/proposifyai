@@ -1,0 +1,1 @@
+ALTER TYPE public.pricing_type ADD VALUE IF NOT EXISTS 'usage_based';

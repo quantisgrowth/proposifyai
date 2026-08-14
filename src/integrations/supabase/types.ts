@@ -262,7 +262,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador"
-      pricing_type: "recurring" | "one_time" | "setup"
+      pricing_type: "recurring" | "one_time" | "setup" | "usage_based"
       proposal_status: "draft" | "sent" | "accepted" | "rejected" | "expired"
     }
     CompositeTypes: {
@@ -392,7 +392,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "colaborador"],
-      pricing_type: ["recurring", "one_time", "setup"],
+      pricing_type: ["recurring", "one_time", "setup", "usage_based"],
       proposal_status: ["draft", "sent", "accepted", "rejected", "expired"],
     },
   },

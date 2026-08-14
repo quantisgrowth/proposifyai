@@ -26,13 +26,23 @@ import { brl } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 
-const allNavItems = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof FileText;
+  exact?: boolean;
+  highlight?: boolean;
+  adminOnly: boolean;
+};
+
+const allNavItems: NavItem[] = [
   { to: "/", label: "Propostas", icon: FileText, exact: true, adminOnly: false },
   { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true, adminOnly: false },
   { to: "/produtos", label: "Catálogo de Produtos", icon: Package, adminOnly: false },
   { to: "/clientes", label: "Clientes", icon: Users, adminOnly: false },
   { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal, adminOnly: true },
-] as const;
+];
+
 
 export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const [mobileOpen, setMobileOpen] = useState(false);

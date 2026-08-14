@@ -531,7 +531,7 @@ function ProposalsPage() {
           payment_terms: proposal.payment_terms,
           notes: proposal.notes,
           status: "draft" as const,
-          company_id: proposal.company_id,
+          company_id: proposal.company_id ?? null,
         })
         .select("id")
         .single();

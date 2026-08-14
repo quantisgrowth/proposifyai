@@ -6,9 +6,8 @@ import { ProposalEditor } from "@/components/proposal-editor";
 type Search = { edit?: string };
 
 export const Route = createFileRoute("/_authenticated/nova")({
-  validateSearch: (search: Record<string, unknown>): Search => ({
-    edit: typeof search['edit'] === "string" ? search['edit'] : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): Search =>
+    typeof search['edit'] === "string" ? { edit: search['edit'] } : {},
   head: () => ({
     meta: [
       { title: "Nova Proposta Comercial — Proposify AI" },
@@ -40,7 +39,7 @@ function NewProposalPage() {
 
       <div className="mt-6 flex-1 flex flex-col min-h-0">
         <ProposalEditor
-          proposalCode={search.edit}
+          {...(search.edit ? { proposalCode: search.edit } : {})}
           onSaveSuccess={() => navigate({ to: "/" })}
           onCancel={() => navigate({ to: "/" })}
         />

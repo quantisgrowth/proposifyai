@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
+          company_id: string | null
           contact_name: string | null
           created_at: string
           document: string | null
@@ -25,6 +26,7 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          company_id?: string | null
           contact_name?: string | null
           created_at?: string
           document?: string | null
@@ -34,6 +36,7 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          company_id?: string | null
           contact_name?: string | null
           created_at?: string
           document?: string | null
@@ -41,6 +44,74 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          created_at: string
+          default_payment_terms: string
+          default_validity_days: number
+          document: string | null
+          email: string | null
+          fidelity_policy: string | null
+          footer_text: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          next_steps_text: string | null
+          objective_text: string | null
+          phone: string | null
+          scope_text: string | null
+          solution_name: string | null
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_payment_terms?: string
+          default_validity_days?: number
+          document?: string | null
+          email?: string | null
+          fidelity_policy?: string | null
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          next_steps_text?: string | null
+          objective_text?: string | null
+          phone?: string | null
+          scope_text?: string | null
+          solution_name?: string | null
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_payment_terms?: string
+          default_validity_days?: number
+          document?: string | null
+          email?: string | null
+          fidelity_policy?: string | null
+          footer_text?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          next_steps_text?: string | null
+          objective_text?: string | null
+          phone?: string | null
+          scope_text?: string | null
+          solution_name?: string | null
+          tagline?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -83,41 +154,145 @@ export type Database = {
         }
         Relationships: []
       }
+      kanban_columns: {
+        Row: {
+          color: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          name: string
+          position: number
+          slug: string
+        }
+        Insert: {
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          slug: string
+        }
+        Update: {
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_columns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
+          company_id: string | null
           created_at: string
           description: string | null
           id: string
+          max_price: number | null
+          min_price: number | null
           name: string
+          pricing_tier_notes: string | null
+          pricing_tiers: Json | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
           unit_price: number
         }
         Insert: {
           active?: boolean
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          max_price?: number | null
+          min_price?: number | null
           name: string
+          pricing_tier_notes?: string | null
+          pricing_tiers?: Json | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           unit_price?: number
         }
         Update: {
           active?: boolean
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          max_price?: number | null
+          min_price?: number | null
           name?: string
+          pricing_tier_notes?: string | null
+          pricing_tiers?: Json | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           unit_price?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active: boolean
+          company_id: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       proposal_items: {
         Row: {
           created_at: string
           description: string | null
           id: string
+          is_included: boolean | null
+          original_price: number | null
           position: number
           pricing_type: Database["public"]["Enums"]["pricing_type"]
           product_id: string | null
@@ -131,6 +306,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_included?: boolean | null
+          original_price?: number | null
           position?: number
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           product_id?: string | null
@@ -144,6 +321,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_included?: boolean | null
+          original_price?: number | null
           position?: number
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           product_id?: string | null
@@ -172,47 +351,77 @@ export type Database = {
       }
       proposals: {
         Row: {
+          accepted_at: string | null
+          accepted_by_email: string | null
+          accepted_by_name: string | null
+          campaign_name: string | null
           client_id: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           discount_amount: number
+          fidelity_policy: string | null
           id: string
           net_amount: number
+          next_steps_text: string | null
           notes: string | null
+          objective_text: string | null
           payment_terms: string | null
           proposal_code: string
+          scope_text: string | null
           sent_at: string | null
-          status: Database["public"]["Enums"]["proposal_status"]
+          solution_name: string | null
+          status: string
           total_amount: number
           validity_date: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by_email?: string | null
+          accepted_by_name?: string | null
+          campaign_name?: string | null
           client_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_amount?: number
+          fidelity_policy?: string | null
           id?: string
           net_amount?: number
+          next_steps_text?: string | null
           notes?: string | null
+          objective_text?: string | null
           payment_terms?: string | null
           proposal_code: string
+          scope_text?: string | null
           sent_at?: string | null
-          status?: Database["public"]["Enums"]["proposal_status"]
+          solution_name?: string | null
+          status?: string
           total_amount?: number
           validity_date?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by_email?: string | null
+          accepted_by_name?: string | null
+          campaign_name?: string | null
           client_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           discount_amount?: number
+          fidelity_policy?: string | null
           id?: string
           net_amount?: number
+          next_steps_text?: string | null
           notes?: string | null
+          objective_text?: string | null
           payment_terms?: string | null
           proposal_code?: string
+          scope_text?: string | null
           sent_at?: string | null
-          status?: Database["public"]["Enums"]["proposal_status"]
+          solution_name?: string | null
+          status?: string
           total_amount?: number
           validity_date?: string | null
         }
@@ -222,6 +431,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -252,6 +468,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_company_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -263,7 +480,6 @@ export type Database = {
     Enums: {
       app_role: "admin" | "colaborador"
       pricing_type: "recurring" | "one_time" | "setup" | "usage_based"
-      proposal_status: "draft" | "sent" | "accepted" | "rejected" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -393,7 +609,6 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "colaborador"],
       pricing_type: ["recurring", "one_time", "setup", "usage_based"],
-      proposal_status: ["draft", "sent", "accepted", "rejected", "expired"],
     },
   },
 } as const

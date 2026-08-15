@@ -102,6 +102,13 @@ export type Proposal = {
   notes: string | null;
   status: ProposalStatus;
   sent_at: string | null;
+  accepted_at?: string | null;
+  accepted_by_name?: string | null;
+  accepted_by_email?: string | null;
+  accepted_by_document?: string | null;
+  accepted_by_ip?: string | null;
+  accepted_by_user_agent?: string | null;
+  accepted_signature_url?: string | null;
   created_at: string;
   loss_reason?: string | null;
   loss_description?: string | null;

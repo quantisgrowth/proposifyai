@@ -355,8 +355,12 @@ export type Database = {
       proposals: {
         Row: {
           accepted_at: string | null
+          accepted_by_document: string | null
           accepted_by_email: string | null
+          accepted_by_ip: string | null
           accepted_by_name: string | null
+          accepted_by_user_agent: string | null
+          accepted_signature_url: string | null
           campaign_name: string | null
           client_id: string | null
           company_id: string | null
@@ -380,8 +384,12 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          accepted_by_document?: string | null
           accepted_by_email?: string | null
+          accepted_by_ip?: string | null
           accepted_by_name?: string | null
+          accepted_by_user_agent?: string | null
+          accepted_signature_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null
@@ -405,8 +413,12 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          accepted_by_document?: string | null
           accepted_by_email?: string | null
+          accepted_by_ip?: string | null
           accepted_by_name?: string | null
+          accepted_by_user_agent?: string | null
+          accepted_signature_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null

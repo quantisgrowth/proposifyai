@@ -45,6 +45,14 @@ export type DocData = {
   paymentTerms?: string | null | undefined;
   notes?: string | null | undefined;
   company?: Company | null | undefined;
+  status?: string | null | undefined;
+  acceptedAt?: string | null | undefined;
+  acceptedByName?: string | null | undefined;
+  acceptedByEmail?: string | null | undefined;
+  acceptedByDocument?: string | null | undefined;
+  acceptedByIp?: string | null | undefined;
+  acceptedByUserAgent?: string | null | undefined;
+  acceptedSignatureUrl?: string | null | undefined;
 };
 
 export function ProposalDocument({ data }: { data: DocData }) {
@@ -394,6 +402,59 @@ export function ProposalDocument({ data }: { data: DocData }) {
           <p className="mt-1">{data.paymentTerms || company?.default_payment_terms || "Pix / Boleto"}</p>
         </div>
       </section>
+
+      {/* Recibo de Assinatura Digital e Auditoria se estiver aceita */}
+      {data.status === "accepted" && (
+        <section className="border-t-2 border-dashed border-slate-300 pt-6 mt-8 space-y-4 text-left">
+          <div className="flex items-center gap-2">
+            <div className="size-2 rounded-full bg-emerald-500" />
+            <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">
+              Recibo de Assinatura e Aceite Digital
+            </h3>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-3 bg-slate-50 border border-slate-200 rounded-lg p-4 text-[11px] text-slate-700">
+            <div className="sm:col-span-2 space-y-1.5">
+              <p>
+                <strong className="text-slate-900">Signatário:</strong> {data.acceptedByName || "—"}
+              </p>
+              <p>
+                <strong className="text-slate-900">E-mail:</strong> {data.acceptedByEmail || "—"}
+              </p>
+              <p>
+                <strong className="text-slate-900">CPF/CNPJ:</strong> {data.acceptedByDocument || "—"}
+              </p>
+              <p>
+                <strong className="text-slate-900">IP de Registro:</strong> {data.acceptedByIp || "—"}
+              </p>
+              <p>
+                <strong className="text-slate-900">Data/Hora:</strong> {data.acceptedAt ? new Date(data.acceptedAt).toLocaleString("pt-BR") : "—"}
+              </p>
+              <p className="text-[9px] text-slate-500 leading-snug">
+                <strong className="text-slate-600">Navegador:</strong> {data.acceptedByUserAgent || "—"}
+              </p>
+            </div>
+            <div className="flex flex-col items-center justify-center border border-dashed border-slate-300 bg-white rounded p-2 h-24">
+              {data.acceptedSignatureUrl ? (
+                <>
+                  <img
+                    src={data.acceptedSignatureUrl}
+                    alt="Assinatura"
+                    className="max-h-14 max-w-full object-contain mb-1"
+                  />
+                  <span className="text-[8px] text-slate-400 uppercase tracking-widest font-semibold font-sans">
+                    Assinatura Visual
+                  </span>
+                </>
+              ) : (
+                <span className="text-[10px] text-slate-400 italic font-sans">Sem assinatura visual</span>
+              )}
+            </div>
+          </div>
+          <p className="text-[9px] text-slate-400 text-center italic leading-normal">
+            Este documento foi aceito eletronicamente de acordo com os termos de consentimento digital estabelecidos.
+          </p>
+        </section>
+      )}
 
       {/* 9. RODAPÉ OFICIAL DA EMPRESA (INDIVIDUAL) */}
       <footer className="border-t border-slate-200 pt-6 text-center text-xs text-slate-500">

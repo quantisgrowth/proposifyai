@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { formatDocument } from "@/lib/format";
 import {
   ArrowLeft,
   Link2,
@@ -74,8 +75,83 @@ function ProposalView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
+  const [signerDocument, setSignerDocument] = useState("");
+  const [signerIp, setSignerIp] = useState("—");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSigned, setHasSigned] = useState(false);
+
+  useEffect(() => {
+    if (modalOpen) {
+      fetch("https://api.ipify.org?format=json")
+        .then((res) => res.json())
+        .then((data) => setSignerIp(data.ip))
+        .catch((err) => {
+          console.error("Error fetching IP:", err);
+          setSignerIp("—");
+        });
+    }
+  }, [modalOpen]);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!canvasRef) return;
+    const ctx = canvasRef.getContext("2d");
+    if (!ctx) return;
+
+    setIsDrawing(true);
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#000000";
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !canvasRef) return;
+    const ctx = canvasRef.getContext("2d");
+    if (!ctx) return;
+
+    if (e.cancelable) e.preventDefault();
+
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    setHasSigned(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const getPos = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!canvasRef) return { x: 0, y: 0 };
+    const rect = canvasRef.getBoundingClientRect();
+    
+    if ("touches" in e) {
+      if (e.touches.length === 0) return { x: 0, y: 0 };
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+  };
+
+  const clearCanvas = () => {
+    if (!canvasRef) return;
+    const ctx = canvasRef.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvasRef.width, canvasRef.height);
+    setHasSigned(false);
+  };
 
   // Authentication session check and generation state
   const [hasSession, setHasSession] = useState(false);
@@ -191,19 +267,28 @@ function ProposalView() {
 
   const handleAcceptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signerName.trim() || !signerEmail.trim() || !acceptedTerms) {
+    if (!signerName.trim() || !signerEmail.trim() || !signerDocument.trim() || !acceptedTerms) {
       toast.error("Por favor, preencha todos os campos e aceite os termos.");
+      return;
+    }
+    if (!hasSigned) {
+      toast.error("Por favor, desenhe sua assinatura no canvas.");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const signatureUrl = canvasRef ? canvasRef.toDataURL("image/png") : "";
       const { acceptProposalServer } = await import("@/lib/public-proposal.functions");
       const result = await acceptProposalServer({
         data: {
           code,
           signerName: signerName.trim(),
           signerEmail: signerEmail.trim(),
+          signerDocument: signerDocument.trim(),
+          signerIp,
+          signerUserAgent: navigator.userAgent,
+          signatureUrl,
         },
       });
 
@@ -299,6 +384,14 @@ function ProposalView() {
             paymentTerms: data.payment_terms,
             notes: data.notes,
             company: (data as any).companies ?? null,
+            status: data.status,
+            acceptedAt: (data as any).accepted_at,
+            acceptedByName: (data as any).accepted_by_name,
+            acceptedByEmail: (data as any).accepted_by_email,
+            acceptedByDocument: (data as any).accepted_by_document,
+            acceptedByIp: (data as any).accepted_by_ip,
+            acceptedByUserAgent: (data as any).accepted_by_user_agent,
+            acceptedSignatureUrl: (data as any).accepted_signature_url,
           }}
         />
       </div>
@@ -306,17 +399,63 @@ function ProposalView() {
       {/* Client Acceptance Panel */}
       <div className="no-print mx-auto mt-8 max-w-3xl px-4 sm:px-6">
         {data.status === "accepted" ? (
-          <div className="rounded-xl border border-emerald-600/20 bg-emerald-600/5 p-6 text-emerald-800 dark:text-emerald-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <CheckCircle2 className="size-5 text-emerald-600" /> Proposta Formalmente Aceita!
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Assinado digitalmente por <strong className="text-foreground">{(data as any).accepted_by_name || "Cliente"}</strong> ({(data as any).accepted_by_email || "—"}) em { (data as any).accepted_at ? new Date((data as any).accepted_at).toLocaleString("pt-BR") : "—" }.
-              </p>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-emerald-600/20 bg-emerald-600/5 p-6 text-emerald-800 dark:text-emerald-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <CheckCircle2 className="size-5 text-emerald-600" /> Proposta Formalmente Aceita!
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Assinado digitalmente por <strong className="text-foreground">{(data as any).accepted_by_name || "Cliente"}</strong> ({(data as any).accepted_by_email || "—"}) em { (data as any).accepted_at ? new Date((data as any).accepted_at).toLocaleString("pt-BR") : "—" }.
+                </p>
+              </div>
+              <div className="rounded border border-emerald-600/30 bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                Ganha / Aceita
+              </div>
             </div>
-            <div className="rounded border border-emerald-600/30 bg-emerald-600/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-700">
-              Ganha / Aceita
+
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+              <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                <FileCheck2 className="size-4 text-emerald-600" /> Detalhes do Aceite Digital
+              </h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 text-xs text-muted-foreground text-left">
+                  <p>
+                    <strong className="text-foreground font-medium">Assinante:</strong> {(data as any).accepted_by_name}
+                  </p>
+                  <p>
+                    <strong className="text-foreground font-medium">E-mail:</strong> {(data as any).accepted_by_email}
+                  </p>
+                  <p>
+                    <strong className="text-foreground font-medium">CPF/CNPJ:</strong> {(data as any).accepted_by_document || "—"}
+                  </p>
+                  <p>
+                    <strong className="text-foreground font-medium">Data/Hora:</strong> { (data as any).accepted_at ? new Date((data as any).accepted_at).toLocaleString("pt-BR") : "—" }
+                  </p>
+                  <p className="truncate">
+                    <strong className="text-foreground font-medium">IP de Registro:</strong> {(data as any).accepted_by_ip || "—"}
+                  </p>
+                  <p className="text-[10px] leading-relaxed max-w-sm truncate">
+                    <strong className="text-foreground font-medium">Navegador:</strong> {(data as any).accepted_by_user_agent || "—"}
+                  </p>
+                </div>
+                <div className="flex flex-col items-center justify-center border border-dashed border-border bg-slate-50/50 rounded-lg p-3 h-32">
+                  {(data as any).accepted_signature_url ? (
+                    <>
+                      <img
+                        src={(data as any).accepted_signature_url}
+                        alt="Assinatura Manual"
+                        className="max-h-20 max-w-full object-contain mb-1"
+                      />
+                      <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
+                        Assinatura Eletrônica
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Sem assinatura visual</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ) : data.status === "sent" ? (
@@ -380,6 +519,48 @@ function ProposalView() {
                 disabled={isSubmitting}
                 className="text-sm"
               />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="signer-document" className="text-xs font-semibold">CPF / CNPJ do Responsável</Label>
+              <Input
+                id="signer-document"
+                value={signerDocument}
+                onChange={(e) => setSignerDocument(formatDocument(e.target.value))}
+                placeholder="Ex: 000.000.000-00"
+                required
+                disabled={isSubmitting}
+                className="text-sm"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Assinatura Manual</Label>
+              <div className="relative border border-border bg-slate-50/50 rounded-lg overflow-hidden h-[120px] w-full select-none cursor-crosshair">
+                <canvas
+                  ref={(ref) => {
+                    if (ref) {
+                      setCanvasRef(ref);
+                      if (ref.width !== ref.clientWidth || ref.height !== ref.clientHeight) {
+                        ref.width = ref.clientWidth;
+                        ref.height = ref.clientHeight;
+                      }
+                    }
+                  }}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-muted-foreground px-1">
+                <span>Desenhe sua assinatura no quadro acima</span>
+                <button type="button" onClick={clearCanvas} className="text-primary hover:underline font-medium">
+                  Limpar
+                </button>
+              </div>
             </div>
 
             <div className="flex items-start gap-2.5 pt-2">

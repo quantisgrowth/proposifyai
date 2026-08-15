@@ -18,7 +18,7 @@ export const getPublicProposal = createServerFn({ method: "GET" })
     const { data: proposal, error } = await supabaseAdmin
       .from("proposals")
       .select(
-        "proposal_code, total_amount, discount_amount, net_amount, validity_date, payment_terms, notes, status, clients(name, document, contact_name, email, phone), proposal_items(title, description, pricing_type, quantity, unit_price, total_price, position)",
+        "proposal_code, total_amount, discount_amount, net_amount, validity_date, payment_terms, notes, status, accepted_at, accepted_by_name, accepted_by_email, accepted_by_document, accepted_by_ip, accepted_by_user_agent, accepted_signature_url, clients(name, document, contact_name, email, phone), proposal_items(title, description, pricing_type, quantity, unit_price, total_price, position)",
       )
       .eq("proposal_code", code)
       .neq("status", "draft")
@@ -45,10 +45,14 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
         code: z.string(),
         signerName: z.string().min(1, "Nome é obrigatório"),
         signerEmail: z.string().email("E-mail inválido"),
+        signerDocument: z.string().min(1, "CPF/CNPJ é obrigatório"),
+        signerIp: z.string().optional(),
+        signerUserAgent: z.string().optional(),
+        signatureUrl: z.string().optional(),
       })
       .parse(data),
   )
-  .handler(async ({ data: { code, signerName, signerEmail } }) => {
+  .handler(async ({ data: { code, signerName, signerEmail, signerDocument, signerIp, signerUserAgent, signatureUrl } }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 1. Buscar a proposta, cliente e empresa
@@ -73,6 +77,10 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
         status: "accepted" as const,
         accepted_by_name: signerName,
         accepted_by_email: signerEmail,
+        accepted_by_document: signerDocument,
+        accepted_by_ip: signerIp || null,
+        accepted_by_user_agent: signerUserAgent || null,
+        accepted_signature_url: signatureUrl || null,
         accepted_at: new Date().toISOString(),
       } as any)
       .eq("id", proposal.id);

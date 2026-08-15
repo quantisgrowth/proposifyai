@@ -169,6 +169,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
   const [campaignName, setCampaignName] = useState("Condições Exclusivas");
   const [solutionName, setSolutionName] = useState("");
   const [objectiveText, setObjectiveText] = useState("");
+  const [scopeText, setScopeText] = useState("");
   const [fidelityPolicy, setFidelityPolicy] = useState("");
   const [nextStepsText, setNextStepsText] = useState("");
 
@@ -188,6 +189,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
     if (activeCompany && !editing) {
       if (activeCompany.solution_name) setSolutionName(activeCompany.solution_name);
       if (activeCompany.objective_text) setObjectiveText(activeCompany.objective_text);
+      if (activeCompany.scope_text) setScopeText(activeCompany.scope_text);
       if (activeCompany.fidelity_policy) setFidelityPolicy(activeCompany.fidelity_policy);
       if (activeCompany.next_steps_text) setNextStepsText(activeCompany.next_steps_text);
       if (activeCompany.default_payment_terms) setPaymentTerms(activeCompany.default_payment_terms);
@@ -201,6 +203,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
     setCampaignName(editing.campaign_name || "Condições Exclusivas");
     setSolutionName(editing.solution_name || activeCompany?.solution_name || "");
     setObjectiveText(editing.objective_text || "");
+    setScopeText(editing.scope_text || "");
     setFidelityPolicy(editing.fidelity_policy || "");
     setNextStepsText(editing.next_steps_text || "");
     setItems(
@@ -360,6 +363,10 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         toast.error("O campo 'Objetivo' é obrigatório para esta empresa.");
         return null;
       }
+      if (!scopeText.trim()) {
+        toast.error("O campo 'Funcionalidades e Escopo' é obrigatório para esta empresa.");
+        return null;
+      }
       if (!fidelityPolicy.trim()) {
         toast.error("O campo 'Fidelidade' é obrigatório para esta empresa.");
         return null;
@@ -388,6 +395,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         campaign_name: campaignName.trim(),
         solution_name: solutionName.trim(),
         objective_text: objectiveText.trim() || null,
+        scope_text: scopeText.trim() || null,
         fidelity_policy: fidelityPolicy.trim() || null,
         next_steps_text: nextStepsText.trim() || null,
         total_amount: subtotal,
@@ -981,6 +989,58 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         </div>
       </section>
 
+      {/* PASSO 4: TEXTOS DA PROPOSTA */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+            4
+          </span>
+          <h2 className="text-lg font-semibold">Textos da Proposta</h2>
+        </div>
+
+        <div className="grid gap-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor</Label>
+            <Textarea
+              rows={3}
+              value={objectiveText}
+              onChange={(e) => setObjectiveText(e.target.value)}
+              placeholder="Ex: A presente proposta tem como objetivo apresentar as condições comerciais..."
+            />
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Funcionalidades e Escopo (Uma por linha no formato: Título: Descrição)</Label>
+            <Textarea
+              rows={4}
+              value={scopeText}
+              onChange={(e) => setScopeText(e.target.value)}
+              placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
+            />
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Política de Fidelidade</Label>
+            <Textarea
+              rows={2}
+              value={fidelityPolicy}
+              onChange={(e) => setFidelityPolicy(e.target.value)}
+              placeholder="Ex: A nossa única fidelidade é a sua satisfação..."
+            />
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">Próximos Passos (Um por linha)</Label>
+            <Textarea
+              rows={3}
+              value={nextStepsText}
+              onChange={(e) => setNextStepsText(e.target.value)}
+              placeholder="Ex: 1. Validação e aceite...\n2. Reunião de alinhamento..."
+            />
+          </div>
+        </div>
+      </section>
+
       {/* BOTÕES DE AÇÃO */}
       <div className="flex flex-wrap gap-3 border-t border-border pt-6">
         <Button
@@ -1026,6 +1086,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         campaignName,
         solutionName,
         objectiveText: objectiveText || undefined,
+        scopeText: scopeText || undefined,
         fidelityPolicy: fidelityPolicy || undefined,
         nextStepsText: nextStepsText || undefined,
         items: docItems,

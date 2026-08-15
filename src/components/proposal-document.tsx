@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import {
   companySettingsQuery,
   type PricingType,
@@ -86,6 +87,24 @@ export function ProposalDocument({ data }: { data: DocData }) {
       desc: "Total liberdade para cadastrar quantos motoristas e gestores forem necessários, sem custos adicionais.",
     },
   ];
+
+  const parsedScopeItems = useMemo(() => {
+    const text = data.scopeText || company?.scope_text;
+    if (!text) return defaultScopeItems;
+    return text.split("\n").filter(l => l.trim()).map(line => {
+      const idx = line.indexOf(":");
+      if (idx !== -1) {
+        return {
+          title: line.substring(0, idx).trim(),
+          desc: line.substring(idx + 1).trim()
+        };
+      }
+      return {
+        title: "",
+        desc: line.trim()
+      };
+    });
+  }, [data.scopeText, company?.scope_text]);
 
   // Identificar se há itens com tabela de faixas por volume
   const itemsWithTiers = data.items.filter(
@@ -179,11 +198,13 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </p>
 
         <div className="grid gap-3 pt-1">
-          {defaultScopeItems.map((item, idx) => (
+          {parsedScopeItems.map((item, idx) => (
             <div key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
               <CheckCircle className="size-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="text-slate-900 font-semibold">{item.title}:</strong>{" "}
+                {item.title ? (
+                  <strong className="text-slate-900 font-semibold">{item.title}: </strong>
+                ) : null}
                 <span>{item.desc}</span>
               </div>
             </div>

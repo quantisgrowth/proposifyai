@@ -407,6 +407,8 @@ const emptyCompany = {
   logo_url: "",
   footer_text: "",
   solution_name: "",
+  objective_text: "",
+  scope_text: "",
   fidelity_policy: "",
   next_steps_text: "",
   default_validity_days: 15,
@@ -438,6 +440,8 @@ function CompaniesTab() {
       logo_url: c.logo_url ?? "",
       footer_text: c.footer_text ?? "",
       solution_name: c.solution_name ?? "",
+      objective_text: c.objective_text ?? "",
+      scope_text: c.scope_text ?? "",
       fidelity_policy: c.fidelity_policy ?? "",
       next_steps_text: c.next_steps_text ?? "",
       default_validity_days: c.default_validity_days,
@@ -458,6 +462,8 @@ function CompaniesTab() {
         logo_url: form.logo_url?.trim() || null,
         footer_text: form.footer_text?.trim() || null,
         solution_name: form.solution_name?.trim() || null,
+        objective_text: form.objective_text?.trim() || null,
+        scope_text: form.scope_text?.trim() || null,
         fidelity_policy: form.fidelity_policy?.trim() || null,
         next_steps_text: form.next_steps_text?.trim() || null,
         default_validity_days: form.default_validity_days,
@@ -728,6 +734,28 @@ function CompaniesTab() {
                   value={form.solution_name}
                   onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
                   placeholder="Ex: Frotlog - Plataforma SaaS de Gestão e Pagamento de Despesas em Rota"
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor Padrão</Label>
+                <Textarea
+                  rows={3}
+                  value={form.objective_text}
+                  onChange={(e) => setForm({ ...form, objective_text: e.target.value })}
+                  placeholder="A presente proposta tem como objetivo apresentar as condições comerciais..."
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Funcionalidades e Escopo Padrão (Uma por linha no formato: Título: Descrição)
+                </Label>
+                <Textarea
+                  rows={4}
+                  value={form.scope_text}
+                  onChange={(e) => setForm({ ...form, scope_text: e.target.value })}
+                  placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
                 />
               </div>
 

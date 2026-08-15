@@ -12,6 +12,7 @@ import {
   Layers,
   ShieldAlert,
   HelpCircle,
+  Copy,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -121,6 +122,22 @@ function ProductsPage() {
       pricing_type: p.pricing_type,
       company_id: p.company_id ?? (profile?.company_id ?? ""),
       pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers : [],
+      pricing_tier_notes: p.pricing_tier_notes ?? "",
+    });
+    setModalOpen(true);
+  };
+
+  const handleDuplicate = (p: Product) => {
+    setEditing(null);
+    setForm({
+      name: `${p.name} (Cópia)`,
+      description: p.description ?? "",
+      unit_price: Number(p.unit_price) || 0,
+      min_price: p.min_price ? Number(p.min_price) : 0,
+      max_price: p.max_price ? Number(p.max_price) : 0,
+      pricing_type: p.pricing_type,
+      company_id: p.company_id ?? (profile?.company_id ?? ""),
+      pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers.map(t => ({ ...t })) : [],
       pricing_tier_notes: p.pricing_tier_notes ?? "",
     });
     setModalOpen(true);
@@ -329,6 +346,14 @@ function ProductsPage() {
                     onClick={() => openEditModal(p)}
                   >
                     <Edit2 className="size-3.5" /> Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => handleDuplicate(p)}
+                  >
+                    <Copy className="size-3.5" /> Duplicar
                   </Button>
                   <Button
                     size="icon"

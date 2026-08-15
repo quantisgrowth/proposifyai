@@ -22,6 +22,7 @@ export type Company = {
   email: string;
   phone: string;
   logo_url?: string | null;
+  brand_color?: string | null;
   footer_text?: string | null;
   solution_name?: string | null;
   objective_text?: string | null;

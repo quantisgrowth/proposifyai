@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { formatDocument } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -405,6 +406,7 @@ const emptyCompany = {
   phone: "",
   document: "",
   logo_url: "",
+  brand_color: "#0f172a",
   footer_text: "",
   solution_name: "",
   objective_text: "",
@@ -423,6 +425,41 @@ function CompaniesTab() {
   const [editing, setEditing] = useState<Company | null>(null);
   const [form, setForm] = useState(emptyCompany);
 
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState("");
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleCropSave = () => {
+    const img = new Image();
+    img.src = rawImageSrc;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 300;
+      canvas.height = 100;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, 300, 100);
+        const baseWidth = 300;
+        const baseHeight = 300 * (img.naturalHeight / img.naturalWidth);
+        ctx.drawImage(
+          img,
+          cropOffset.x,
+          cropOffset.y,
+          baseWidth * cropZoom,
+          baseHeight * cropZoom
+        );
+        const croppedBase64 = canvas.toDataURL("image/png");
+        setForm((prev) => ({ ...prev, logo_url: croppedBase64 }));
+        toast.success("Logo ajustada e carregada!");
+      }
+      setCropperOpen(false);
+      setRawImageSrc("");
+    };
+  };
+
   const openCreateModal = () => {
     setEditing(null);
     setForm(emptyCompany);
@@ -438,6 +475,7 @@ function CompaniesTab() {
       phone: c.phone,
       document: c.document,
       logo_url: c.logo_url ?? "",
+      brand_color: c.brand_color ?? "#0f172a",
       footer_text: c.footer_text ?? "",
       solution_name: c.solution_name ?? "",
       objective_text: c.objective_text ?? "",
@@ -460,6 +498,7 @@ function CompaniesTab() {
         phone: form.phone.trim(),
         document: form.document.trim(),
         logo_url: form.logo_url?.trim() || null,
+        brand_color: form.brand_color?.trim() || "#0f172a",
         footer_text: form.footer_text?.trim() || null,
         solution_name: form.solution_name?.trim() || null,
         objective_text: form.objective_text?.trim() || null,
@@ -635,8 +674,10 @@ function CompaniesTab() {
                         const reader = new FileReader();
                         reader.onload = (event) => {
                           const base64 = event.target?.result as string;
-                          setForm((prev) => ({ ...prev, logo_url: base64 }));
-                          toast.success("Logo carregada!");
+                          setRawImageSrc(base64);
+                          setCropZoom(1);
+                          setCropOffset({ x: 0, y: 0 });
+                          setCropperOpen(true);
                         };
                         reader.readAsDataURL(file);
                       }}
@@ -652,12 +693,37 @@ function CompaniesTab() {
                     </Button>
                   </div>
 
+                  <p className="text-[10px] text-muted-foreground/90">
+                    Dimensão recomendada: <strong>300x100px</strong> (proporção 3:1) com fundo transparente.
+                  </p>
+
                   <Input
                     value={form.logo_url.startsWith("data:") ? "Arquivo enviado (" + form.logo_url.slice(0, 30) + "...)" : form.logo_url}
                     onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
                     placeholder="Ou cole a URL direta da imagem (ex: https://.../logo.png)"
                     className="text-xs h-8"
                   />
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <Label className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                      Cor de Marca da Proposta:
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={form.brand_color || "#0f172a"}
+                        onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                        className="size-8 rounded border cursor-pointer bg-transparent shrink-0"
+                      />
+                      <Input
+                        type="text"
+                        value={form.brand_color || "#0f172a"}
+                        onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                        placeholder="#0f172a"
+                        className="text-xs h-8 w-24 font-mono uppercase"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -677,7 +743,7 @@ function CompaniesTab() {
                 <Label className="text-xs text-muted-foreground">CNPJ</Label>
                 <Input
                   value={form.document}
-                  onChange={(e) => setForm({ ...form, document: e.target.value })}
+                  onChange={(e) => setForm({ ...form, document: formatDocument(e.target.value) })}
                   placeholder="CNPJ 53.968.073/0001-38"
                 />
               </div>
@@ -817,6 +883,115 @@ function CompaniesTab() {
               </Button>
               <Button onClick={() => save.mutate()} disabled={save.isPending}>
                 {save.isPending ? "Salvando..." : editing ? "Salvar Alterações" : "Cadastrar Empresa"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE CORTE DE LOGO */}
+      <Dialog open={cropperOpen} onOpenChange={setCropperOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajustar Logotipo</DialogTitle>
+            <DialogDescription className="text-xs">
+              Arraste a imagem e use o zoom para enquadrar a logo dentro do retângulo pontilhado (proporção ideal de 3:1).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Container do Cropper */}
+            <div
+              className="relative w-full h-[240px] bg-slate-950/5 overflow-hidden rounded-lg border border-border flex items-center justify-center select-none"
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                setDragStart({ x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y });
+              }}
+              onMouseMove={(e) => {
+                if (!isDragging) return;
+                setCropOffset({
+                  x: e.clientX - dragStart.x,
+                  y: e.clientY - dragStart.y,
+                });
+              }}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => setIsDragging(false)}
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                setIsDragging(true);
+                setDragStart({ x: touch.clientX - cropOffset.x, y: touch.clientY - cropOffset.y });
+              }}
+              onTouchMove={(e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                setCropOffset({
+                  x: touch.clientX - dragStart.x,
+                  y: touch.clientY - dragStart.y,
+                });
+              }}
+              onTouchEnd={() => setIsDragging(false)}
+            >
+              {/* Imagem a ser cortada */}
+              {rawImageSrc && (
+                <img
+                  src={rawImageSrc}
+                  alt="Crop Target"
+                  style={{
+                    position: "absolute",
+                    left: "calc(50% - 150px)", // align with crop area left
+                    top: "calc(50% - 50px)",  // align with crop area top
+                    transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${cropZoom})`,
+                    transformOrigin: "0 0",
+                    cursor: "move",
+                    maxWidth: "none",
+                    width: "300px",
+                    height: "auto",
+                    pointerEvents: "none", // dragging handled by parent container
+                  }}
+                  id="cropper-image"
+                />
+              )}
+
+              {/* Área de Recorte Overlay */}
+              <div
+                className="absolute w-[300px] h-[100px] border-2 border-dashed border-primary pointer-events-none rounded-sm shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+                style={{
+                  top: "calc(50% - 50px)",
+                  left: "calc(50% - 150px)",
+                }}
+              />
+            </div>
+
+            {/* Controle de Zoom */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Zoom</span>
+                <span>{Math.round(cropZoom * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="4"
+                step="0.05"
+                value={cropZoom}
+                onChange={(e) => setCropZoom(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  setCropperOpen(false);
+                  setRawImageSrc("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="button" onClick={handleCropSave}>
+                Cortar e Confirmar
               </Button>
             </DialogFooter>
           </div>

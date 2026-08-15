@@ -15,8 +15,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/nova'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
+import { Route as AuthenticatedPropostasRouteImport } from './routes/_authenticated/propostas'
 import { Route as PropostaCodeRouteImport } from './routes/proposta.$code'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -48,6 +50,11 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedNovaRoute = AuthenticatedNovaRouteImport.update({
   id: '/nova',
   path: '/nova',
@@ -56,6 +63,11 @@ const AuthenticatedNovaRoute = AuthenticatedNovaRouteImport.update({
 const AuthenticatedProdutosRoute = AuthenticatedProdutosRouteImport.update({
   id: '/produtos',
   path: '/produtos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPropostasRoute = AuthenticatedPropostasRouteImport.update({
+  id: '/propostas',
+  path: '/propostas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const PropostaCodeRoute = PropostaCodeRouteImport.update({
@@ -70,8 +82,10 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/nova': typeof AuthenticatedNovaRoute
   '/produtos': typeof AuthenticatedProdutosRoute
+  '/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
 }
 export interface FileRoutesByTo {
@@ -79,8 +93,10 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/nova': typeof AuthenticatedNovaRoute
   '/produtos': typeof AuthenticatedProdutosRoute
+  '/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
   '/': typeof AuthenticatedIndexRoute
 }
@@ -91,8 +107,10 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/nova': typeof AuthenticatedNovaRoute
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
+  '/_authenticated/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
@@ -104,8 +122,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/clientes'
+    | '/dashboard'
     | '/nova'
     | '/produtos'
+    | '/propostas'
     | '/proposta/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -113,8 +133,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/clientes'
+    | '/dashboard'
     | '/nova'
     | '/produtos'
+    | '/propostas'
     | '/proposta/$code'
     | '/'
   id:
@@ -124,8 +146,10 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/admin'
     | '/_authenticated/clientes'
+    | '/_authenticated/dashboard'
     | '/_authenticated/nova'
     | '/_authenticated/produtos'
+    | '/_authenticated/propostas'
     | '/proposta/$code'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
@@ -181,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/nova': {
       id: '/_authenticated/nova'
       path: '/nova'
@@ -193,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/produtos'
       fullPath: '/produtos'
       preLoaderRoute: typeof AuthenticatedProdutosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/propostas': {
+      id: '/_authenticated/propostas'
+      path: '/propostas'
+      fullPath: '/propostas'
+      preLoaderRoute: typeof AuthenticatedPropostasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/proposta/$code': {
@@ -208,16 +246,20 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedNovaRoute: typeof AuthenticatedNovaRoute
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
+  AuthenticatedPropostasRoute: typeof AuthenticatedPropostasRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedNovaRoute: AuthenticatedNovaRoute,
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
+  AuthenticatedPropostasRoute: AuthenticatedPropostasRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 

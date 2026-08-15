@@ -40,7 +40,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsQuery, companiesQuery, type Client } from "@/lib/proposals";
-import { shortDate } from "@/lib/format";
+import { shortDate, formatDocument } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
@@ -539,7 +539,7 @@ function ClientsPage() {
               <div className="flex gap-2">
                 <Input
                   value={form.document}
-                  onChange={(e) => setForm({ ...form, document: e.target.value })}
+                  onChange={(e) => setForm({ ...form, document: formatDocument(e.target.value) })}
                   placeholder="00.000.000/0000-00"
                   className="flex-1"
                 />

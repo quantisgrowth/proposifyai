@@ -57,6 +57,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          brand_color: string | null
           created_at: string
           default_payment_terms: string
           default_validity_days: number
@@ -76,6 +77,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_color?: string | null
           created_at?: string
           default_payment_terms?: string
           default_validity_days?: number
@@ -95,6 +97,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_color?: string | null
           created_at?: string
           default_payment_terms?: string
           default_validity_days?: number

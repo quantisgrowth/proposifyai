@@ -50,7 +50,7 @@ import {
   type PricingTier,
   type Company,
 } from "@/lib/proposals";
-import { brl, pricingLabel } from "@/lib/format";
+import { brl, pricingLabel, formatDocument } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import {
   Dialog,
@@ -590,7 +590,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
                 <Label className="text-xs">CNPJ / CPF</Label>
                 <Input
                   value={newClient.document}
-                  onChange={(e) => setNewClient({ ...newClient, document: e.target.value })}
+                  onChange={(e) => setNewClient({ ...newClient, document: formatDocument(e.target.value) })}
                   placeholder="00.000.000/0001-00"
                 />
               </div>

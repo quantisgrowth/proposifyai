@@ -18,6 +18,7 @@ import {
   Sparkles,
   Shield,
   UserCheck,
+  LayoutGrid,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -36,7 +37,8 @@ type NavItem = {
 };
 
 const allNavItems: NavItem[] = [
-  { to: "/", label: "Propostas", icon: FileText, exact: true, adminOnly: false },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid, adminOnly: false },
+  { to: "/propostas", label: "Propostas", icon: FileText, adminOnly: false },
   { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true, adminOnly: false },
   { to: "/produtos", label: "Catálogo de Produtos", icon: Package, adminOnly: false },
   { to: "/clientes", label: "Clientes", icon: Users, adminOnly: false },
@@ -173,38 +175,6 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             })}
           </nav>
         </div>
-
-        {/* Quick Performance Metrics in Sidebar */}
-        {!sidebarCollapsed && (
-          <div className="mt-6 space-y-2 rounded-xl border border-border/80 bg-card/60 p-3.5 backdrop-blur-sm">
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Pipeline ({companyDisplayName})
-            </p>
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <div className="rounded-lg bg-secondary/50 p-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <CheckCircle2 className="size-3 text-emerald-500" />
-                  <span>Conversão</span>
-                </div>
-                <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{conversion}%</p>
-              </div>
-              <div className="rounded-lg bg-secondary/50 p-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <Clock className="size-3 text-amber-500" />
-                  <span>Enviadas</span>
-                </div>
-                <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{sent}</p>
-              </div>
-            </div>
-            <div className="rounded-lg bg-secondary/50 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <TrendingUp className="size-3 text-sky-500" />
-                <span>Valor em Negociação</span>
-              </div>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{brl(pending)}</p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Footer Profile & Logout */}

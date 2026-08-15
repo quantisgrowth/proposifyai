@@ -63,6 +63,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
     `${companyName} - Plataforma Inteligente de Gestão e Soluções`;
 
   const campaignName = data.campaignName || "Condições Exclusivas";
+  const brandColor = company?.brand_color || "#0f172a";
 
   const objectiveText =
     data.objectiveText ||
@@ -179,7 +180,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
       {/* 3. SEÇÃO 1: OBJETIVO E PROPOSTA DE VALOR */}
       <section className="space-y-3">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
           1. Objetivo e Proposta de Valor
         </h2>
         <p className="text-sm leading-relaxed text-slate-700 text-justify whitespace-pre-line">
@@ -189,7 +190,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
       {/* 4. SEÇÃO 2: FUNCIONALIDADES & ESCOPO DA SOLUÇÃO */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
           2. Funcionalidades & Escopo da Solução
         </h2>
         <p className="text-sm text-slate-700">
@@ -215,8 +216,8 @@ export function ProposalDocument({ data }: { data: DocData }) {
       {/* 5. SEÇÃO 3: TABELA DE PRECIFICAÇÃO POR PERFORMANCE / FAIXAS DE VOLUME (SE HOUVER) */}
       {itemsWithTiers.length > 0 && (
         <section className="space-y-4 pt-4 border-t border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <BarChart3 className="size-5 text-primary" /> 3. Modelo de Precificação por Performance (Padrão)
+          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
+            <BarChart3 className="size-5 shrink-0" style={{ color: brandColor }} /> 3. Modelo de Precificação por Performance (Padrão)
           </h2>
           <p className="text-sm text-slate-700">
             A monetização do sistema dar-se-á por meio de performance transacional. A tabela é
@@ -228,7 +229,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
             <div key={idx} className="space-y-2">
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider font-semibold">
+                  <thead className="text-white text-xs uppercase tracking-wider font-semibold" style={{ backgroundColor: brandColor }}>
                     <tr>
                       <th className="p-3.5 pl-4">Faixa de Volume (Transações/Mês)</th>
                       <th className="p-3.5 pr-4 text-right">Valor por Transação Realizada</th>
@@ -259,7 +260,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
       {/* 6. SEÇÃO 4: CONDIÇÕES COMERCIAIS ESPECIAIS (TABELA DE ITENS) */}
       <section className="space-y-4 pt-4 border-t border-slate-200">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
           {itemsWithTiers.length > 0 ? "4." : "3."} Condições Comerciais Especiais ({campaignName})
         </h2>
         <p className="text-sm text-slate-700">
@@ -271,7 +272,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
         {/* Tabela de Condições Comerciais */}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-900 text-white text-xs uppercase tracking-wider font-semibold">
+            <thead className="text-white text-xs uppercase tracking-wider font-semibold" style={{ backgroundColor: brandColor }}>
               <tr>
                 <th className="p-3.5 pl-4">Item do Serviço</th>
                 <th className="p-3.5 text-center">Tipo de Cobrança</th>
@@ -343,14 +344,14 @@ export function ProposalDocument({ data }: { data: DocData }) {
           ) : null}
           <div className="flex justify-between border-t border-slate-300 pt-2 text-base font-bold text-slate-900">
             <span>Investimento Líquido</span>
-            <span className="tabular-nums text-lg text-emerald-700">{brl(data.net)}</span>
+            <span className="tabular-nums text-lg font-extrabold" style={{ color: brandColor }}>{brl(data.net)}</span>
           </div>
         </div>
 
         {/* Política de Fidelidade */}
         <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1.5">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-            <ShieldCheck className="size-4 text-primary" /> Nossa Política de Fidelidade:
+            <ShieldCheck className="size-4 shrink-0" style={{ color: brandColor }} /> Nossa Política de Fidelidade:
           </p>
           <p className="text-xs text-slate-700 leading-relaxed">{fidelityText}</p>
         </div>
@@ -358,7 +359,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
       {/* 7. SEÇÃO 5: PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
       <section className="space-y-4 pt-4 border-t border-slate-200">
-        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
           {itemsWithTiers.length > 0 ? "5." : "4."} Próximos Passos para Ativação
         </h2>
         <div className="space-y-2.5">
@@ -366,7 +367,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
             const cleanStep = step.replace(/^\d+\.\s*/, "");
             return (
               <div key={idx} className="flex items-start gap-3 text-sm text-slate-700">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: brandColor }}>
                   {idx + 1}
                 </div>
                 <p className="pt-0.5">{cleanStep}</p>

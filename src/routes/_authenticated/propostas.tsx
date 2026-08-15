@@ -437,8 +437,27 @@ function ProposalsPage() {
     setShareModalOpen(true);
   };
 
+  const ensureProposalSent = async (p: ProposalWithClient) => {
+    if (p.status === "draft") {
+      try {
+        const { error } = await supabase
+          .from("proposals")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", p.id);
+        if (!error) {
+          qc.invalidateQueries({ queryKey: ["proposals"] });
+          qc.invalidateQueries({ queryKey: ["proposal-view", p.proposal_code] });
+          toast.success("Proposta ativada (status alterado para Enviada)!");
+        }
+      } catch (err) {
+        console.error("Error setting proposal to sent:", err);
+      }
+    }
+  };
+
   const handleCopyLink = async () => {
     if (!sharingProposal) return;
+    ensureProposalSent(sharingProposal);
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/proposta/${sharingProposal.proposal_code}`);
       toast.success("Link da proposta copiado!");
@@ -448,6 +467,9 @@ function ProposalsPage() {
   };
 
   const handleCopyMessage = async () => {
+    if (sharingProposal) {
+      ensureProposalSent(sharingProposal);
+    }
     try {
       await navigator.clipboard.writeText(emailBody);
       toast.success("Mensagem do e-mail copiada!");
@@ -457,9 +479,12 @@ function ProposalsPage() {
   };
 
   const handleSendLocalEmail = () => {
+    if (sharingProposal) {
+      ensureProposalSent(sharingProposal);
+    }
     const subject = encodeURIComponent(emailSubject);
     const body = encodeURIComponent(emailBody);
-    window.open(`mailto:${customEmail}?subject=${subject}&body=${body}`, "_blank");
+    window.location.href = `mailto:${customEmail}?subject=${subject}&body=${body}`;
     setShareModalOpen(false);
   };
 

@@ -220,7 +220,26 @@ function ProposalView() {
     );
   }
 
+  const ensureProposalSent = async () => {
+    if (data && data.status === "draft") {
+      try {
+        const { error } = await supabase
+          .from("proposals")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", data.id);
+        if (!error) {
+          queryClient.invalidateQueries({ queryKey: ["proposal-view", code] });
+          queryClient.invalidateQueries({ queryKey: ["proposals"] });
+          toast.success("Proposta ativada (status alterado para Enviada)!");
+        }
+      } catch (err) {
+        console.error("Error setting proposal to sent:", err);
+      }
+    }
+  };
+
   const copyLink = async () => {
+    ensureProposalSent();
     try {
       await navigator.clipboard.writeText(window.location.origin + `/proposta/${code}`);
       toast.success("Link da proposta copiado");
@@ -230,6 +249,7 @@ function ProposalView() {
   };
 
   const handleCopyMessage = async () => {
+    ensureProposalSent();
     try {
       await navigator.clipboard.writeText(emailBody);
       toast.success("Mensagem do e-mail copiada!");
@@ -239,9 +259,10 @@ function ProposalView() {
   };
 
   const handleSendLocalEmail = () => {
+    ensureProposalSent();
     const subject = encodeURIComponent(emailSubject);
     const body = encodeURIComponent(emailBody);
-    window.open(`mailto:${customEmail}?subject=${subject}&body=${body}`, "_blank");
+    window.location.href = `mailto:${customEmail}?subject=${subject}&body=${body}`;
     setShareModalOpen(false);
   };
 

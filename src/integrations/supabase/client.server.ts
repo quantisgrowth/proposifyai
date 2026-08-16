@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const DEFAULT_SUPABASE_URL = "https://zeolvknpvkvwkidfdvnv.supabase.co";
+const DEFAULT_SUPABASE_URL = "https://zovniacrszwjinmluyxq.supabase.co";
 const DEFAULT_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2x2a25wdmt2d2tpZGZkdm52Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjU1MjE2OSwiZXhwIjoyMTAyMTI4MTY5fQ.YSl8GyvryjdTzzSDEpA-PYZZxMWJ5upoYUzOG4--95w";
 
 function createSupabaseAdminClient() {

@@ -62,6 +62,9 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
       .eq("proposal_code", code)
       .maybeSingle();
 
+    console.log("DIAGNOSTIC - SUPABASE_URL:", process.env['SUPABASE_URL'] || "FALLBACK_DEFAULT");
+    console.log("DIAGNOSTIC - proposals columns visible to select:", proposal ? Object.keys(proposal) : "NO_PROPOSAL");
+
     if (fetchError || !proposal) {
       throw new Error("Proposta não encontrada");
     }

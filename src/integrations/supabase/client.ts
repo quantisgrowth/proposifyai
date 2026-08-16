@@ -5,15 +5,8 @@ const DEFAULT_SUPABASE_URL = "https://zeolvknpvkvwkidfdvnv.supabase.co";
 const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2x2a25wdmt2d2tpZGZkdm52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NTIxNjksImV4cCI6MjEwMjEyODE2OX0.6wmfP1nOTE6TFmPQVftsGWQvDSL-9PjnnJlBCAOZY_Y";
 
 function createSupabaseClient() {
-  const SUPABASE_URL =
-    import.meta.env['VITE_SUPABASE_URL'] ||
-    process.env['SUPABASE_URL'] ||
-    DEFAULT_SUPABASE_URL;
-
-  const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] ||
-    process.env['SUPABASE_PUBLISHABLE_KEY'] ||
-    DEFAULT_SUPABASE_KEY;
+  const SUPABASE_URL = DEFAULT_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = DEFAULT_SUPABASE_KEY;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {

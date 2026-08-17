@@ -185,9 +185,9 @@ function AuthPage() {
             <Button
               type="submit"
               disabled={busy}
-              className="mt-2 h-12 w-full rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
+              className="mt-2 h-12 w-full rounded-lg bg-zinc-800 text-sm font-bold text-white shadow-sm transition-all hover:bg-zinc-900 hover:shadow-md uppercase tracking-wider"
             >
-              {busy ? "Entrando..." : "Login"}
+              {busy ? "ENTRANDO..." : "LOGIN"}
             </Button>
 
             <div className="pt-2 flex flex-col items-center gap-2">

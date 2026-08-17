@@ -163,9 +163,9 @@ function AdminLoginPage() {
           <Button
             type="submit"
             disabled={busy}
-            className="mt-2 h-11 w-full rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-md transition-all hover:bg-primary/90"
+            className="mt-2 h-11 w-full rounded-lg bg-zinc-800 text-sm font-bold text-white shadow-md transition-all hover:bg-zinc-900 uppercase tracking-wider"
           >
-            {busy ? "Validando credenciais..." : "Entrar no Painel Admin"}
+            {busy ? "VALIDANDO CREDENCIAIS..." : "ENTRAR NO PAINEL ADMIN"}
           </Button>
         </form>
 

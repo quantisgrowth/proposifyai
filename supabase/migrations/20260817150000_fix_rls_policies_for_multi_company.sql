@@ -18,12 +18,12 @@ CREATE POLICY "companies read own or linked" ON public.companies FOR SELECT TO a
   USING (
     id = public.current_company_id()
     OR id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 DROP POLICY IF EXISTS "companies admin write" ON public.companies;
 CREATE POLICY "companies admin write" ON public.companies FOR ALL TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
+  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 -- 2. PROFILES POLICIES
 DROP POLICY IF EXISTS "profiles read team" ON public.profiles;
@@ -32,23 +32,23 @@ CREATE POLICY "profiles read team" ON public.profiles FOR SELECT TO authenticate
     id = auth.uid() 
     OR company_id = public.current_company_id()
     OR company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 DROP POLICY IF EXISTS "profiles admin write" ON public.profiles;
 CREATE POLICY "profiles admin write" ON public.profiles FOR ALL TO authenticated
-  USING (public.has_role(auth.uid(), 'admin'));
+  USING (public.has_role(auth.uid(), 'admin'::public.app_role));
 
 -- 3. CLIENTS POLICIES
 DROP POLICY IF EXISTS "clients team access" ON public.clients;
 CREATE POLICY "clients team access" ON public.clients FOR ALL TO authenticated
   USING (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   )
   WITH CHECK (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 -- 4. PRODUCTS POLICIES
@@ -56,13 +56,13 @@ DROP POLICY IF EXISTS "products team read" ON public.products;
 CREATE POLICY "products team read" ON public.products FOR SELECT TO authenticated
   USING (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 DROP POLICY IF EXISTS "products admin write" ON public.products;
 CREATE POLICY "products admin write" ON public.products FOR ALL TO authenticated
   USING (
-    public.has_role(auth.uid(), 'admin')
+    public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 -- 5. KANBAN COLUMNS POLICIES
@@ -70,13 +70,13 @@ DROP POLICY IF EXISTS "kanban read team" ON public.kanban_columns;
 CREATE POLICY "kanban read team" ON public.kanban_columns FOR SELECT TO authenticated
   USING (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 DROP POLICY IF EXISTS "kanban admin write" ON public.kanban_columns;
 CREATE POLICY "kanban admin write" ON public.kanban_columns FOR ALL TO authenticated
   USING (
-    public.has_role(auth.uid(), 'admin')
+    public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 -- 6. PROPOSALS POLICIES
@@ -84,11 +84,11 @@ DROP POLICY IF EXISTS "proposals team access" ON public.proposals;
 CREATE POLICY "proposals team access" ON public.proposals FOR ALL TO authenticated
   USING (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   )
   WITH CHECK (
     company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-    OR public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
   );
 
 -- 7. PROPOSAL ITEMS POLICIES
@@ -100,7 +100,7 @@ CREATE POLICY "proposal_items team access" ON public.proposal_items FOR ALL TO a
       WHERE p.id = proposal_id 
       AND (
         p.company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-        OR public.has_role(auth.uid(), 'admin')
+        OR public.has_role(auth.uid(), 'admin'::public.app_role)
       )
     )
   )
@@ -110,7 +110,7 @@ CREATE POLICY "proposal_items team access" ON public.proposal_items FOR ALL TO a
       WHERE p.id = proposal_id 
       AND (
         p.company_id IN (SELECT company_id FROM public.profile_companies WHERE profile_id = auth.uid())
-        OR public.has_role(auth.uid(), 'admin')
+        OR public.has_role(auth.uid(), 'admin'::public.app_role)
       )
     )
   );

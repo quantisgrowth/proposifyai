@@ -134,8 +134,8 @@ function ProposalView() {
     if ("touches" in e) {
       if (e.touches.length === 0) return { x: 0, y: 0 };
       return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
+        x: e.touches[0]!.clientX - rect.left,
+        y: e.touches[0]!.clientY - rect.top,
       };
     } else {
       return {
@@ -276,6 +276,7 @@ function ProposalView() {
       const htmlBody = emailBody.replace(/\n/g, "<br>");
       
       const res = await sendOfficialProposalEmailServer({
+        data: {
         proposalId: data.id,
         toEmail: customEmail,
         subject: emailSubject,
@@ -284,6 +285,7 @@ function ProposalView() {
             <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">${htmlBody}</p>
           </div>
         `,
+        },
       });
 
       if (res.success) {

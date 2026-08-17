@@ -500,6 +500,7 @@ function ProposalsPage() {
       const htmlBody = emailBody.replace(/\n/g, "<br>");
       
       const res = await sendOfficialProposalEmailServer({
+        data: {
         proposalId: sharingProposal.id,
         toEmail: customEmail,
         subject: emailSubject,
@@ -508,6 +509,7 @@ function ProposalsPage() {
             <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">${htmlBody}</p>
           </div>
         `,
+        },
       });
 
       if (res.success) {
@@ -569,10 +571,12 @@ function ProposalsPage() {
   const changeStatus = useMutation({
     mutationFn: async ({ id, next, lossReason, lossDescription }: { id: string; next: string; lossReason?: string; lossDescription?: string }) => {
       await updateProposalStatusServer({
-        proposalId: id,
-        status: next,
-        lossReason: lossReason || null,
-        lossDescription: lossDescription || null,
+        data: {
+          proposalId: id,
+          status: next,
+          lossReason: lossReason || null,
+          lossDescription: lossDescription || null,
+        },
       });
     },
     onSuccess: () => {
@@ -626,8 +630,6 @@ function ProposalsPage() {
             total_price: item.total_price,
             position: item.position,
             original_price: (item as any).original_price ?? null,
-            pricing_tiers: (item as any).pricing_tiers ?? null,
-            pricing_tier_notes: (item as any).pricing_tier_notes ?? null,
             is_included: (item as any).is_included ?? false,
           })),
         );

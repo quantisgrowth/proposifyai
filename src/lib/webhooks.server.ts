@@ -1,10 +1,11 @@
 import crypto from "crypto";
 
 export async function triggerWebhook(
-  companyId: string,
+  companyId: string | null,
   event: "proposal.accepted" | "proposal.sent" | "proposal.rejected" | "proposal.created",
   proposal: any
 ) {
+  if (!companyId) return;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

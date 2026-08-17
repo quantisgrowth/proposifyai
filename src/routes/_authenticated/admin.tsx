@@ -16,6 +16,7 @@ import {
   X,
   Check,
   ChevronsUpDown,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -195,7 +196,7 @@ function CollaboratorsTab() {
           // Inserir relacionamentos profile_companies
           if (form.company_ids.length > 0) {
             const mappingRows = form.company_ids.map((cid) => ({
-              profile_id: authData.user.id,
+              profile_id: authData.user!.id,
               company_id: cid,
             }));
             const { error: insError } = await supabase
@@ -1081,7 +1082,7 @@ function CompaniesTab() {
                   <Button
                     type="button"
                     variant="outline"
-                    size="xs"
+                    size="sm"
                     onClick={async () => {
                       if (!form.smtp_host || !form.smtp_port || !form.smtp_user || !form.smtp_pass) {
                         toast.error("Preencha todos os campos do SMTP antes de testar.");
@@ -1096,10 +1097,12 @@ function CompaniesTab() {
                       try {
                         const { testSmtpConnectionServer } = await import("@/lib/email.server");
                         const res = await testSmtpConnectionServer({
-                          host: form.smtp_host,
-                          port: portNum,
-                          user: form.smtp_user,
-                          pass: form.smtp_pass,
+                          data: {
+                            host: form.smtp_host,
+                            port: portNum,
+                            user: form.smtp_user,
+                            pass: form.smtp_pass,
+                          },
                         });
                         if (res.success) {
                           toast.success("Conexão SMTP efetuada com sucesso!", { id: "smtp-test" });
@@ -1222,12 +1225,14 @@ function CompaniesTab() {
               onMouseLeave={() => setIsDragging(false)}
               onTouchStart={(e) => {
                 const touch = e.touches[0];
+                if (!touch) return;
                 setIsDragging(true);
                 setDragStart({ x: touch.clientX - cropOffset.x, y: touch.clientY - cropOffset.y });
               }}
               onTouchMove={(e) => {
                 if (!isDragging) return;
                 const touch = e.touches[0];
+                if (!touch) return;
                 setCropOffset({
                   x: touch.clientX - dragStart.x,
                   y: touch.clientY - dragStart.y,

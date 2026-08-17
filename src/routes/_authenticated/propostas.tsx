@@ -182,6 +182,100 @@ function ProposalsPage() {
   const [lossProposalId, setLossProposalId] = useState<string | null>(null);
   const [lossForm, setLossForm] = useState({ reason: "Preço", description: "" });
 
+  const [rulesDraft, setRulesDraft] = useState<{
+    only_view_own_proposals: boolean;
+    require_all_fields: boolean;
+    block_proposal_deletion: boolean;
+    delete_allowed_users: string[];
+  } | null>(null);
+  const [confirmRulesModalOpen, setConfirmRulesModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeCompanySettings && adminMenuOpen) {
+      setRulesDraft({
+        only_view_own_proposals: Boolean(activeCompanySettings.only_view_own_proposals),
+        require_all_fields: Boolean(activeCompanySettings.require_all_fields),
+        block_proposal_deletion: Boolean(activeCompanySettings.block_proposal_deletion),
+        delete_allowed_users: activeCompanySettings.delete_allowed_users || [],
+      });
+    } else {
+      setRulesDraft(null);
+    }
+  }, [activeCompanySettings, adminMenuOpen]);
+
+  const isRulesDirty = useMemo(() => {
+    if (!activeCompanySettings || !rulesDraft) return false;
+    
+    const sameOwn = Boolean(activeCompanySettings.only_view_own_proposals) === rulesDraft.only_view_own_proposals;
+    const sameReq = Boolean(activeCompanySettings.require_all_fields) === rulesDraft.require_all_fields;
+    const sameDel = Boolean(activeCompanySettings.block_proposal_deletion) === rulesDraft.block_proposal_deletion;
+    
+    const arrOriginal = [...(activeCompanySettings.delete_allowed_users || [])].sort();
+    const arrDraft = [...rulesDraft.delete_allowed_users].sort();
+    const sameUsers = arrOriginal.length === arrDraft.length && arrOriginal.every((val, index) => val === arrDraft[index]);
+    
+    return !sameOwn || !sameReq || !sameDel || !sameUsers;
+  }, [activeCompanySettings, rulesDraft]);
+
+  const getRulesChanges = () => {
+    if (!activeCompanySettings || !rulesDraft) return [];
+    const changes: { label: string; from: string; to: string }[] = [];
+
+    if (Boolean(activeCompanySettings.only_view_own_proposals) !== rulesDraft.only_view_own_proposals) {
+      changes.push({
+        label: "Visualização Restrita para Vendedores",
+        from: activeCompanySettings.only_view_own_proposals ? "Ativado" : "Desativado",
+        to: rulesDraft.only_view_own_proposals ? "Ativado" : "Desativado",
+      });
+    }
+
+    if (Boolean(activeCompanySettings.require_all_fields) !== rulesDraft.require_all_fields) {
+      changes.push({
+        label: "Obrigatoriedade de Todos os Campos",
+        from: activeCompanySettings.require_all_fields ? "Ativado" : "Desativado",
+        to: rulesDraft.require_all_fields ? "Ativado" : "Desativado",
+      });
+    }
+
+    if (Boolean(activeCompanySettings.block_proposal_deletion) !== rulesDraft.block_proposal_deletion) {
+      changes.push({
+        label: "Bloquear Exclusão de Negócios / Propostas",
+        from: activeCompanySettings.block_proposal_deletion ? "Ativado" : "Desativado",
+        to: rulesDraft.block_proposal_deletion ? "Ativado" : "Desativado",
+      });
+    }
+
+    const originalAllowed = activeCompanySettings.delete_allowed_users || [];
+    const draftAllowed = rulesDraft.delete_allowed_users;
+    
+    const addedUsers = draftAllowed.filter(id => !originalAllowed.includes(id));
+    const removedUsers = originalAllowed.filter(id => !draftAllowed.includes(id));
+
+    if (addedUsers.length > 0 || removedUsers.length > 0) {
+      const getNames = (ids: string[]) => ids.map(id => {
+        const p = (profiles ?? []).find(prof => prof.id === id);
+        return p ? (p.full_name || p.email) : id;
+      }).join(", ");
+
+      if (addedUsers.length > 0) {
+        changes.push({
+          label: "Permissão de Exclusão concedida para",
+          from: "-",
+          to: getNames(addedUsers),
+        });
+      }
+      if (removedUsers.length > 0) {
+        changes.push({
+          label: "Permissão de Exclusão removida para",
+          from: getNames(removedUsers),
+          to: "-",
+        });
+      }
+    }
+
+    return changes;
+  };
+
   const getInactivityDays = (proposal: ProposalWithClient) => {
     const date = proposal.sent_at ? new Date(proposal.sent_at) : new Date(proposal.created_at);
     const diffTime = Math.abs(new Date().getTime() - date.getTime());
@@ -1486,9 +1580,9 @@ function ProposalsPage() {
                       </div>
                       <input
                         type="checkbox"
-                        checked={Boolean(activeCompanySettings?.only_view_own_proposals)}
+                        checked={Boolean(rulesDraft?.only_view_own_proposals)}
                         onChange={(e) => {
-                          updateCompanySettings.mutate({ only_view_own_proposals: e.target.checked });
+                          setRulesDraft((prev) => prev ? { ...prev, only_view_own_proposals: e.target.checked } : null);
                         }}
                         className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
                       />
@@ -1506,9 +1600,9 @@ function ProposalsPage() {
                       </div>
                       <input
                         type="checkbox"
-                        checked={Boolean(activeCompanySettings?.require_all_fields)}
+                        checked={Boolean(rulesDraft?.require_all_fields)}
                         onChange={(e) => {
-                          updateCompanySettings.mutate({ require_all_fields: e.target.checked });
+                          setRulesDraft((prev) => prev ? { ...prev, require_all_fields: e.target.checked } : null);
                         }}
                         className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
                       />
@@ -1527,15 +1621,15 @@ function ProposalsPage() {
                         </div>
                         <input
                           type="checkbox"
-                          checked={Boolean(activeCompanySettings?.block_proposal_deletion)}
+                          checked={Boolean(rulesDraft?.block_proposal_deletion)}
                           onChange={(e) => {
-                            updateCompanySettings.mutate({ block_proposal_deletion: e.target.checked });
+                            setRulesDraft((prev) => prev ? { ...prev, block_proposal_deletion: e.target.checked } : null);
                           }}
                           className="rounded border-border text-primary focus:ring-primary size-4 shrink-0 mt-0.5 cursor-pointer"
                         />
                       </div>
 
-                      {activeCompanySettings?.block_proposal_deletion && (
+                      {rulesDraft?.block_proposal_deletion && (
                         <div className="pt-3 border-t border-border/60">
                           <Label className="text-[10px] font-semibold text-foreground uppercase tracking-wide block mb-2">
                             Colaboradores com permissão de exclusão:
@@ -1544,7 +1638,7 @@ function ProposalsPage() {
                             {(profiles ?? [])
                               .filter((p) => p.company_id === activeCompanyFilter)
                               .map((p) => {
-                                const isAllowed = (activeCompanySettings?.delete_allowed_users || []).includes(p.id);
+                                const isAllowed = (rulesDraft?.delete_allowed_users || []).includes(p.id);
                                 return (
                                   <div key={p.id} className="flex items-center gap-2">
                                     <input
@@ -1553,11 +1647,11 @@ function ProposalsPage() {
                                       checked={isAllowed}
                                       onChange={(e) => {
                                         const checked = e.target.checked;
-                                        const current = activeCompanySettings?.delete_allowed_users || [];
+                                        const current = rulesDraft?.delete_allowed_users || [];
                                         const next = checked
                                           ? [...current, p.id]
                                           : current.filter((id) => id !== p.id);
-                                        updateCompanySettings.mutate({ delete_allowed_users: next });
+                                        setRulesDraft((prev) => prev ? { ...prev, delete_allowed_users: next } : null);
                                       }}
                                       className="rounded border-border text-primary focus:ring-primary size-3.5 cursor-pointer"
                                     />
@@ -1573,6 +1667,18 @@ function ProposalsPage() {
                           </div>
                         </div>
                       )}
+                    </div>
+
+                    {/* Botão de Salvar */}
+                    <div className="pt-3 border-t border-border flex justify-end">
+                      <Button
+                        size="sm"
+                        disabled={!isRulesDirty || updateCompanySettings.isPending}
+                        onClick={() => setConfirmRulesModalOpen(true)}
+                        className="gap-1.5"
+                      >
+                        {updateCompanySettings.isPending ? "Salvando..." : "Salvar Alterações"}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1756,6 +1862,47 @@ function ProposalsPage() {
               </Button>
             </DialogFooter>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Alteração de Regras */}
+      <Dialog open={confirmRulesModalOpen} onOpenChange={setConfirmRulesModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground font-bold">
+              Confirmar Alterações de Regras
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Você tem certeza que deseja salvar as alterações abaixo para a empresa <strong>{activeCompanySettings?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2 space-y-3 rounded-lg border border-border bg-muted/20 p-4 max-h-[250px] overflow-y-auto">
+            {getRulesChanges().map((c, idx) => (
+              <div key={idx} className="text-xs border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                <p className="font-semibold text-foreground">{c.label}</p>
+                <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                  <span className="line-through bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">{c.from}</span>
+                  <span>→</span>
+                  <span className="bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded font-medium">{c.to}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="mt-4 flex sm:justify-end gap-2 pt-2 border-t border-border/30">
+            <Button variant="outline" size="sm" onClick={() => setConfirmRulesModalOpen(false)}>
+              Voltar
+            </Button>
+            <Button size="sm" onClick={async () => {
+              if (rulesDraft) {
+                await updateCompanySettings.mutateAsync(rulesDraft);
+                setConfirmRulesModalOpen(false);
+              }
+            }}>
+              Sim, Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

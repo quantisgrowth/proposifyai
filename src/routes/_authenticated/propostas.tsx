@@ -73,6 +73,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ResizableDialog } from "@/components/ui/resizable-dialog";
 import { ProposalEditor } from "@/components/proposal-editor";
 import { ProposalDocument } from "@/components/proposal-document";
+import { updateProposalStatusServer } from "@/lib/public-proposal.functions";
 
 const colorOptions = [
   { value: "bg-slate-400", label: "Cinza", class: "bg-slate-400" },
@@ -135,21 +136,22 @@ const filters: Array<{ value: "all" | ProposalStatus; label: string }> = [
 function ProposalsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { profile, company, isAdmin } = useAuth();
+  const { profile, company, isAdmin, activeCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
   const { data: profiles } = useQuery(profilesQuery);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Filter state for company select (admins only)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
     if (isAdmin) return "all";
-    return profile?.company_id ?? "";
+    return activeCompanyId ?? "";
   });
 
   const activeCompanyFilter = isAdmin
     ? selectedCompanyId === "all"
       ? null
       : selectedCompanyId
-    : profile?.company_id || company?.id || null;
+    : activeCompanyId || company?.id || null;
 
   const activeCompanySettings = useMemo(() => {
     return (companies ?? []).find((c) => c.id === activeCompanyFilter) || company;
@@ -488,6 +490,43 @@ function ProposalsPage() {
     setShareModalOpen(false);
   };
 
+  const handleSendOfficialEmail = async () => {
+    if (!sharingProposal) return;
+    setSendingEmail(true);
+    toast.loading("Enviando proposta por e-mail...", { id: "send-proposal-email" });
+    try {
+      const { sendOfficialProposalEmailServer } = await import("@/lib/email.server");
+      
+      const htmlBody = emailBody.replace(/\n/g, "<br>");
+      
+      const res = await sendOfficialProposalEmailServer({
+        proposalId: sharingProposal.id,
+        toEmail: customEmail,
+        subject: emailSubject,
+        bodyHtml: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #334155;">
+            <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">${htmlBody}</p>
+          </div>
+        `,
+      });
+
+      if (res.success) {
+        toast.success(
+          res.method === "smtp"
+            ? "E-mail enviado via SMTP corporativo!"
+            : "E-mail enviado com sucesso!",
+          { id: "send-proposal-email" }
+        );
+        setShareModalOpen(false);
+        qc.invalidateQueries({ queryKey: ["proposals"] });
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar e-mail: " + err.message, { id: "send-proposal-email" });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData("text/plain", id);
     setDraggedId(id);
@@ -529,16 +568,12 @@ function ProposalsPage() {
 
   const changeStatus = useMutation({
     mutationFn: async ({ id, next, lossReason, lossDescription }: { id: string; next: string; lossReason?: string; lossDescription?: string }) => {
-      const patch: any = { status: next };
-      if (next === "sent") {
-        patch.sent_at = new Date().toISOString();
-      }
-      if (next === "rejected") {
-        patch.loss_reason = lossReason || null;
-        patch.loss_description = lossDescription || null;
-      }
-      const { error } = await supabase.from("proposals").update(patch).eq("id", id);
-      if (error) throw error;
+      await updateProposalStatusServer({
+        proposalId: id,
+        status: next,
+        lossReason: lossReason || null,
+        lossDescription: lossDescription || null,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposals"] });
@@ -1201,14 +1236,17 @@ function ProposalsPage() {
 
           <DialogFooter className="gap-2 pt-3 flex-col sm:flex-row-reverse sm:justify-between items-stretch">
             <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
-              <Button onClick={handleSendLocalEmail} className="flex-1 sm:flex-none font-semibold gap-1.5">
-                <ExternalLink className="size-4" /> Abrir no E-mail
+              <Button onClick={handleSendOfficialEmail} disabled={sendingEmail} className="flex-1 sm:flex-none font-semibold gap-1.5">
+                <Mail className="size-4" /> {sendingEmail ? "Enviando..." : "Enviar E-mail"}
               </Button>
               <Button variant="outline" onClick={() => setShareModalOpen(false)}>
                 Cancelar
               </Button>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button type="button" variant="secondary" onClick={handleSendLocalEmail} className="flex-1 sm:flex-none gap-1">
+                <ExternalLink className="size-3.5" /> Abrir no E-mail Local
+              </Button>
               <Button type="button" variant="secondary" onClick={handleCopyMessage} className="flex-1 sm:flex-none gap-1">
                 <Copy className="size-3.5" /> Copiar Mensagem
               </Button>

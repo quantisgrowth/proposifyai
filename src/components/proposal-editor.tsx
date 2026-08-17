@@ -115,26 +115,26 @@ interface ProposalEditorProps {
 export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: ProposalEditorProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { profile, company: userCompany, isAdmin } = useAuth();
+  const { profile, company: userCompany, isAdmin, activeCompanyId: authActiveCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
   const isMobile = useIsMobile();
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    return profile?.company_id ?? "";
+    return authActiveCompanyId ?? "";
   });
 
   useEffect(() => {
-    if (profile?.company_id) {
-      setSelectedCompanyId(profile.company_id);
+    if (authActiveCompanyId) {
+      setSelectedCompanyId(authActiveCompanyId);
     }
-  }, [profile?.company_id]);
+  }, [authActiveCompanyId]);
 
   useEffect(() => {
-    if (!selectedCompanyId && companies && companies.length > 0 && !profile?.company_id) {
+    if (!selectedCompanyId && companies && companies.length > 0 && !authActiveCompanyId) {
       const defaultComp = companies.find((c) => c.name.toLowerCase().includes("frotlog")) || companies[0];
       if (defaultComp) setSelectedCompanyId(defaultComp.id);
     }
-  }, [companies, selectedCompanyId, profile?.company_id]);
+  }, [companies, selectedCompanyId, authActiveCompanyId]);
 
   const fallbackCompanyId = useMemo(() => {
     if (companies && companies.length > 0) {
@@ -144,7 +144,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
     return null;
   }, [companies]);
 
-  const activeCompanyId = (isAdmin ? selectedCompanyId : profile?.company_id || userCompany?.id) || fallbackCompanyId || null;
+  const activeCompanyId = (isAdmin ? selectedCompanyId : authActiveCompanyId || userCompany?.id) || fallbackCompanyId || null;
   const activeCompany = useMemo(() => {
     return companies?.find((c) => c.id === activeCompanyId) ?? userCompany ?? null;
   }, [companies, activeCompanyId, userCompany]);

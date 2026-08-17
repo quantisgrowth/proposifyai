@@ -73,7 +73,7 @@ const emptyForm = {
 
 function ClientsPage() {
   const qc = useQueryClient();
-  const { profile, company, isAdmin } = useAuth();
+  const { profile, company, isAdmin, activeCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
 
   // View mode and search state
@@ -83,14 +83,14 @@ function ClientsPage() {
   // Company filtering for admins
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
     if (isAdmin) return "all";
-    return profile?.company_id ?? "";
+    return activeCompanyId ?? "";
   });
 
   const activeCompanyFilter = isAdmin
     ? selectedCompanyId === "all"
       ? null
       : selectedCompanyId
-    : profile?.company_id || company?.id || null;
+    : activeCompanyId || company?.id || null;
 
   const { data: clients, isLoading } = useQuery(clientsQuery(activeCompanyFilter));
 
@@ -107,7 +107,7 @@ function ClientsPage() {
       company_id:
         selectedCompanyId !== "all"
           ? selectedCompanyId
-          : profile?.company_id ?? (companies?.[0]?.id ?? ""),
+          : activeCompanyId ?? (companies?.[0]?.id ?? ""),
     });
     setModalOpen(true);
   };
@@ -120,7 +120,7 @@ function ClientsPage() {
       contact_name: c.contact_name ?? "",
       email: c.email ?? "",
       phone: c.phone ?? "",
-      company_id: c.company_id ?? (profile?.company_id ?? ""),
+      company_id: c.company_id ?? (activeCompanyId ?? ""),
     });
     setModalOpen(true);
   };
@@ -191,7 +191,7 @@ function ClientsPage() {
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe a razão social ou nome");
       
-      const targetCompanyId = form.company_id || profile?.company_id || (companies?.[0]?.id ?? null);
+      const targetCompanyId = form.company_id || activeCompanyId || (companies?.[0]?.id ?? null);
       
       const payload = {
         name: form.name.trim(),

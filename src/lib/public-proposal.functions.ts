@@ -92,6 +92,21 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
       throw new Error("Falha ao aceitar proposta: " + updateError.message);
     }
 
+    // Trigger Webhook for accepted proposal
+    try {
+      const { data: updatedProp } = await supabaseAdmin
+        .from("proposals")
+        .select("*, clients(*)")
+        .eq("id", proposal.id)
+        .maybeSingle();
+      if (updatedProp) {
+        const { triggerWebhook } = await import("@/lib/webhooks.server");
+        triggerWebhook(updatedProp.company_id, "proposal.accepted", updatedProp);
+      }
+    } catch (webErr) {
+      console.error("Failed to trigger webhook on accept:", webErr);
+    }
+
     // 3. Buscar e-mail do vendedor que criou a proposta
     let salespersonEmail = proposal.companies?.email || "comercial@proposify.ai";
     let salespersonName = proposal.companies?.name || "Vendedor";
@@ -183,6 +198,75 @@ export const acceptProposalServer = createServerFn({ method: "POST" })
         clientName: proposal.clients?.name,
         netAmount: proposal.net_amount,
       });
+    }
+
+    return { success: true };
+  });
+
+export const updateProposalStatusServer = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        proposalId: z.string(),
+        status: z.string(),
+        lossReason: z.string().optional().nullable(),
+        lossDescription: z.string().optional().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data: { proposalId, status, lossReason, lossDescription } }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { triggerWebhook } = await import("@/lib/webhooks.server");
+
+    // 1. Fetch proposal before update
+    const { data: proposal, error: fetchErr } = await supabaseAdmin
+      .from("proposals")
+      .select("*, clients(*)")
+      .eq("id", proposalId)
+      .maybeSingle();
+
+    if (fetchErr || !proposal) {
+      throw new Error("Proposta não encontrada");
+    }
+
+    const oldStatus = proposal.status;
+
+    // 2. Perform update
+    const patch: any = { status };
+    if (status === "sent" && !proposal.sent_at) {
+      patch.sent_at = new Date().toISOString();
+    }
+    if (status === "rejected") {
+      patch.loss_reason = lossReason || null;
+      patch.loss_description = lossDescription || null;
+    }
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("proposals")
+      .update(patch)
+      .eq("id", proposalId);
+
+    if (updateErr) {
+      throw new Error("Erro ao atualizar status: " + updateErr.message);
+    }
+
+    // Fetch updated proposal to get full state
+    const { data: updatedProposal } = await supabaseAdmin
+      .from("proposals")
+      .select("*, clients(*)")
+      .eq("id", proposalId)
+      .maybeSingle();
+
+    if (updatedProposal && oldStatus !== status) {
+      // 3. Trigger Webhook
+      let webhookEvent: "proposal.accepted" | "proposal.sent" | "proposal.rejected" | "proposal.created" | null = null;
+      if (status === "accepted") webhookEvent = "proposal.accepted";
+      else if (status === "sent") webhookEvent = "proposal.sent";
+      else if (status === "rejected") webhookEvent = "proposal.rejected";
+      
+      if (webhookEvent) {
+        triggerWebhook(updatedProposal.company_id, webhookEvent, updatedProposal);
+      }
     }
 
     return { success: true };

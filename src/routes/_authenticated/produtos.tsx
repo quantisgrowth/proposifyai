@@ -78,19 +78,19 @@ const emptyProduct = {
 
 function ProductsPage() {
   const qc = useQueryClient();
-  const { profile, company, isAdmin } = useAuth();
+  const { profile, company, isAdmin, activeCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
 
   // Se for admin, permite selecionar qualquer empresa ou "all"
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    return profile?.company_id ?? "all";
+    return activeCompanyId ?? "all";
   });
 
   const activeCompanyFilter = isAdmin
     ? selectedCompanyId === "all"
       ? null
       : selectedCompanyId
-    : profile?.company_id || company?.id || null;
+    : activeCompanyId || company?.id || null;
 
   const { data: products, isLoading } = useQuery(productsQuery(activeCompanyFilter));
 
@@ -106,7 +106,7 @@ function ProductsPage() {
       company_id:
         selectedCompanyId !== "all"
           ? selectedCompanyId
-          : profile?.company_id ?? (companies?.[0]?.id ?? ""),
+          : activeCompanyId ?? (companies?.[0]?.id ?? ""),
     });
     setModalOpen(true);
   };
@@ -120,7 +120,7 @@ function ProductsPage() {
       min_price: p.min_price ? Number(p.min_price) : 0,
       max_price: p.max_price ? Number(p.max_price) : 0,
       pricing_type: p.pricing_type,
-      company_id: p.company_id ?? (profile?.company_id ?? ""),
+      company_id: p.company_id ?? (activeCompanyId ?? ""),
       pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers : [],
       pricing_tier_notes: p.pricing_tier_notes ?? "",
     });
@@ -136,7 +136,7 @@ function ProductsPage() {
       min_price: p.min_price ? Number(p.min_price) : 0,
       max_price: p.max_price ? Number(p.max_price) : 0,
       pricing_type: p.pricing_type,
-      company_id: p.company_id ?? (profile?.company_id ?? ""),
+      company_id: p.company_id ?? (activeCompanyId ?? ""),
       pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers.map(t => ({ ...t })) : [],
       pricing_tier_notes: p.pricing_tier_notes ?? "",
     });
@@ -168,7 +168,7 @@ function ProductsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe o nome do serviço");
-      const targetCompanyId = form.company_id || profile?.company_id || (companies?.[0]?.id ?? null);
+      const targetCompanyId = form.company_id || activeCompanyId || (companies?.[0]?.id ?? null);
       
       const payload = {
         name: form.name.trim(),

@@ -61,9 +61,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function DashboardPage() {
-  const { profile, company, isAdmin } = useAuth();
+  const { profile, company, isAdmin, activeCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
-  const { data: proposals, isLoading } = useQuery(proposalsQuery(profile?.company_id));
+  const { data: proposals, isLoading } = useQuery(proposalsQuery(activeCompanyId));
 
   const list = useMemo(() => proposals ?? [], [proposals]);
 

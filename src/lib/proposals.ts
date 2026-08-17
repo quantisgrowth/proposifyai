@@ -37,6 +37,15 @@ export type Company = {
   require_all_fields?: boolean;
   block_proposal_deletion?: boolean;
   delete_allowed_users?: string[];
+  api_key?: string | null;
+  webhook_url?: string | null;
+  webhook_secret?: string | null;
+  smtp_host?: string | null;
+  smtp_port?: number | null;
+  smtp_user?: string | null;
+  smtp_pass?: string | null;
+  smtp_from?: string | null;
+  smtp_from_name?: string | null;
 };
 
 export type Profile = {
@@ -176,13 +185,17 @@ export const profilesQuery = {
   queryKey: ["profiles"],
   staleTime: 1 * 60 * 1000, // 1 min
   gcTime: 5 * 60 * 1000,
-  queryFn: async (): Promise<(Profile & { company: Company | null })[]> => {
+  queryFn: async (): Promise<(Profile & { company: Company | null; company_ids: string[] })[]> => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*, company:companies(*)")
+      .select("*, company:companies(*), profile_companies(company_id)")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []) as unknown as (Profile & { company: Company | null })[];
+    
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      company_ids: p.profile_companies?.map((pc: any) => pc.company_id) ?? []
+    })) as unknown as (Profile & { company: Company | null; company_ids: string[] })[];
   },
 };
 

@@ -14,6 +14,8 @@ import {
   FileText,
   Upload,
   X,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -38,6 +40,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import {
   companiesQuery,
@@ -70,7 +77,7 @@ const emptyCollaboratorForm = {
   email: "",
   password: "",
   role: "colaborador" as UserRole,
-  company_id: "",
+  company_ids: [] as string[],
 };
 
 function CollaboratorsTab() {
@@ -88,19 +95,23 @@ function CollaboratorsTab() {
     setEditingProfile(null);
     setForm({
       ...emptyCollaboratorForm,
-      company_id: companies?.[0]?.id ?? "",
+      company_ids: companies?.[0]?.id ? [companies[0].id] : [],
     });
     setModalOpen(true);
   };
 
-  const openEditModal = (p: Profile) => {
+  const openEditModal = (p: any) => {
     setEditingProfile(p);
     setForm({
       full_name: p.full_name ?? "",
       email: p.email,
       password: "",
       role: p.role,
-      company_id: p.company_id ?? (companies?.[0]?.id ?? ""),
+      company_ids: Array.isArray(p.company_ids) && p.company_ids.length > 0 
+        ? p.company_ids 
+        : p.company_id 
+        ? [p.company_id] 
+        : [],
     });
     setModalOpen(true);
   };
@@ -114,6 +125,8 @@ function CollaboratorsTab() {
 
     setBusy(true);
     try {
+      const primaryCompanyId = form.company_ids[0] || null;
+
       if (editingProfile) {
         // Modo Edição
         const { error } = await supabase
@@ -122,11 +135,30 @@ function CollaboratorsTab() {
             full_name: form.full_name,
             email: form.email.trim(),
             role: form.role,
-            company_id: form.company_id || null,
+            company_id: primaryCompanyId,
           })
           .eq("id", editingProfile.id);
 
         if (error) throw error;
+
+        // Atualizar relacionamentos profile_companies
+        const { error: delError } = await supabase
+          .from("profile_companies")
+          .delete()
+          .eq("profile_id", editingProfile.id);
+        if (delError) throw delError;
+
+        if (form.company_ids.length > 0) {
+          const mappingRows = form.company_ids.map((cid) => ({
+            profile_id: editingProfile.id,
+            company_id: cid,
+          }));
+          const { error: insError } = await supabase
+            .from("profile_companies")
+            .insert(mappingRows);
+          if (insError) throw insError;
+        }
+
         toast.success("Cadastro do colaborador atualizado!");
       } else {
         // Modo Criação
@@ -143,7 +175,7 @@ function CollaboratorsTab() {
             data: {
               full_name: form.full_name,
               role: form.role,
-              company_id: form.company_id || (companies?.[0]?.id ?? null),
+              company_id: primaryCompanyId,
             },
           },
         });
@@ -155,10 +187,22 @@ function CollaboratorsTab() {
             email: form.email.trim(),
             full_name: form.full_name,
             role: form.role,
-            company_id: form.company_id || (companies?.[0]?.id ?? null),
+            company_id: primaryCompanyId,
             active: true,
           });
           if (profileError) throw profileError;
+
+          // Inserir relacionamentos profile_companies
+          if (form.company_ids.length > 0) {
+            const mappingRows = form.company_ids.map((cid) => ({
+              profile_id: authData.user.id,
+              company_id: cid,
+            }));
+            const { error: insError } = await supabase
+              .from("profile_companies")
+              .insert(mappingRows);
+            if (insError) throw insError;
+          }
         }
         toast.success("Colaborador cadastrado com sucesso!");
       }
@@ -189,10 +233,13 @@ function CollaboratorsTab() {
   const filteredProfiles = (profiles ?? []).filter((p) => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return true;
+    const linkedCompanies = (companies ?? []).filter((c) => p.company_ids?.includes(c.id));
+    const companyNamesMatch = linkedCompanies.some((c) => c.name.toLowerCase().includes(term));
     return (
       (p.full_name ?? "").toLowerCase().includes(term) ||
       p.email.toLowerCase().includes(term) ||
-      (p.company?.name ?? "").toLowerCase().includes(term)
+      (p.company?.name ?? "").toLowerCase().includes(term) ||
+      companyNamesMatch
     );
   });
 
@@ -217,7 +264,7 @@ function CollaboratorsTab() {
       {/* Tabela / Lista Full-Width */}
       <div className="divide-y divide-border rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         {filteredProfiles.map((p) => {
-          const companyName = p.company?.name || "Empresa Padrão";
+          const linkedCompanies = (companies ?? []).filter((c) => p.company_ids?.includes(c.id));
           return (
             <div
               key={p.id}
@@ -244,10 +291,23 @@ function CollaboratorsTab() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{p.email}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Building2 className="size-3 text-primary" />
-                    <span className="font-medium text-foreground/80">{companyName}</span>
-                  </p>
+                  
+                  {/* Visualização das Empresas Associadas (Badges) */}
+                  <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                    <Building2 className="size-3.5 text-primary shrink-0 mr-0.5" />
+                    {linkedCompanies.length > 0 ? (
+                      linkedCompanies.map((c) => (
+                        <span
+                          key={c.id}
+                          className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-foreground border border-border"
+                        >
+                          {c.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">Sem empresas vinculadas</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -297,8 +357,8 @@ function CollaboratorsTab() {
             </DialogTitle>
             <DialogDescription className="text-xs">
               {editingProfile
-                ? "Altere os dados cadastrais, cargo ou a empresa vinculada a este colaborador."
-                : "Defina o e-mail, senha inicial e a qual empresa este colaborador terá acesso."}
+                ? "Altere os dados cadastrais, cargo ou as empresas vinculadas a este colaborador."
+                : "Defina o e-mail, senha inicial e a quais empresas este colaborador terá acesso."}
             </DialogDescription>
           </DialogHeader>
 
@@ -338,23 +398,54 @@ function CollaboratorsTab() {
             ) : null}
 
             <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Vincular a Empresa</Label>
-              <Select
-                value={form.company_id}
-                onValueChange={(val) => setForm({ ...form, company_id: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(companies ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs text-muted-foreground">Vincular a Empresas</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between text-left font-normal text-xs h-10 border-input bg-background hover:bg-accent"
+                  >
+                    <span className="truncate">
+                      {form.company_ids.length === 0
+                        ? "Selecione as empresas"
+                        : form.company_ids.length === 1
+                        ? companies?.find((c) => c.id === form.company_ids[0])?.name
+                        : `${form.company_ids.length} empresas selecionadas`}
+                    </span>
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[380px] p-2 bg-popover border border-border rounded-lg shadow-md z-50">
+                  <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                    {(companies ?? []).map((c) => {
+                      const isChecked = form.company_ids.includes(c.id);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer text-xs select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setForm({ ...form, company_ids: [...form.company_ids, c.id] });
+                              } else {
+                                setForm({ ...form, company_ids: form.company_ids.filter((id) => id !== c.id) });
+                              }
+                            }}
+                            className="rounded border-input text-primary focus:ring-primary size-4"
+                          />
+                          <span className="font-medium text-foreground">{c.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+
 
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Função / Permissão</Label>
@@ -415,6 +506,15 @@ const emptyCompany = {
   next_steps_text: "",
   default_validity_days: 15,
   default_payment_terms: "Pix",
+  api_key: "",
+  webhook_url: "",
+  webhook_secret: "",
+  smtp_host: "",
+  smtp_port: 587,
+  smtp_user: "",
+  smtp_pass: "",
+  smtp_from: "",
+  smtp_from_name: "",
 };
 
 function CompaniesTab() {
@@ -484,6 +584,15 @@ function CompaniesTab() {
       next_steps_text: c.next_steps_text ?? "",
       default_validity_days: c.default_validity_days,
       default_payment_terms: c.default_payment_terms,
+      api_key: c.api_key ?? "",
+      webhook_url: c.webhook_url ?? "",
+      webhook_secret: c.webhook_secret ?? "",
+      smtp_host: c.smtp_host ?? "",
+      smtp_port: c.smtp_port ?? 587,
+      smtp_user: c.smtp_user ?? "",
+      smtp_pass: c.smtp_pass ?? "",
+      smtp_from: c.smtp_from ?? "",
+      smtp_from_name: c.smtp_from_name ?? "",
     });
     setModalOpen(true);
   };
@@ -507,6 +616,14 @@ function CompaniesTab() {
         next_steps_text: form.next_steps_text?.trim() || null,
         default_validity_days: form.default_validity_days,
         default_payment_terms: form.default_payment_terms,
+        webhook_url: form.webhook_url?.trim() || null,
+        webhook_secret: form.webhook_secret?.trim() || null,
+        smtp_host: form.smtp_host?.trim() || null,
+        smtp_port: form.smtp_port ? Number(form.smtp_port) : null,
+        smtp_user: form.smtp_user?.trim() || null,
+        smtp_pass: form.smtp_pass || null,
+        smtp_from: form.smtp_from?.trim() || null,
+        smtp_from_name: form.smtp_from_name?.trim() || null,
       };
 
       if (editing) {
@@ -877,8 +994,195 @@ function CompaniesTab() {
               </div>
             </div>
 
+            {/* Seção 4: Integrações, Webhooks e E-mail (SMTP) */}
+            <div className="rounded-lg border border-border bg-secondary/10 p-4 space-y-4">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <SlidersHorizontal className="size-3.5 text-primary" /> Integrações e Configurações de API/SMTP
+              </Label>
+
+              {/* API Token Section */}
+              {editing && (
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Token de API (Integração de Entrada)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.api_key}
+                      readOnly
+                      className="bg-muted font-mono text-xs cursor-text flex-1 h-9"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(form.api_key);
+                        toast.success("Token copiado!");
+                      }}
+                      className="text-xs"
+                    >
+                      Copiar
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Use este token no cabeçalho <code>Authorization: Bearer &lt;token&gt;</code> para enviar dados via CRM.
+                  </p>
+                </div>
+              )}
+
+              {/* Webhook Configuration */}
+              <div className="space-y-3 pt-1 border-t border-border/55">
+                <Label className="text-[11px] font-bold text-foreground block">Saída de Dados (Webhooks)</Label>
+                <div className="grid gap-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
+                    <Input
+                      value={form.webhook_url}
+                      onChange={(e) => setForm({ ...form, webhook_url: e.target.value })}
+                      placeholder="Ex: https://api.seu-crm.com/webhooks/proposify"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Segredo do Webhook (Webhook Secret)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={form.webhook_secret}
+                        onChange={(e) => setForm({ ...form, webhook_secret: e.target.value })}
+                        placeholder="Gerado automaticamente"
+                        className="text-xs h-9 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const randHex = Array.from({ length: 32 }, () =>
+                            Math.floor(Math.random() * 16).toString(16)
+                          ).join("");
+                          setForm({ ...form, webhook_secret: randHex });
+                          toast.success("Novo segredo gerado (salve para aplicar)!");
+                        }}
+                        className="text-xs"
+                      >
+                        Gerar
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Assina o payload via HMAC-SHA256 no cabeçalho <code>X-Proposify-Signature</code>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SMTP Settings */}
+              <div className="space-y-3 pt-3 border-t border-border/55">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-bold text-foreground block">Envio de E-mail Corporativo (SMTP)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={async () => {
+                      if (!form.smtp_host || !form.smtp_port || !form.smtp_user || !form.smtp_pass) {
+                        toast.error("Preencha todos os campos do SMTP antes de testar.");
+                        return;
+                      }
+                      const portNum = Number(form.smtp_port);
+                      if (isNaN(portNum)) {
+                        toast.error("A porta do SMTP deve ser um número.");
+                        return;
+                      }
+                      toast.loading("Testando conexão SMTP...", { id: "smtp-test" });
+                      try {
+                        const { testSmtpConnectionServer } = await import("@/lib/email.server");
+                        const res = await testSmtpConnectionServer({
+                          host: form.smtp_host,
+                          port: portNum,
+                          user: form.smtp_user,
+                          pass: form.smtp_pass,
+                        });
+                        if (res.success) {
+                          toast.success("Conexão SMTP efetuada com sucesso!", { id: "smtp-test" });
+                        }
+                      } catch (err: any) {
+                        toast.error("Erro no teste SMTP: " + err.message, { id: "smtp-test" });
+                      }
+                    }}
+                    className="text-[10px] h-7 px-2"
+                  >
+                    Testar Conexão
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="grid gap-1.5 col-span-2">
+                    <Label className="text-xs text-muted-foreground">Host do SMTP</Label>
+                    <Input
+                      value={form.smtp_host}
+                      onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
+                      placeholder="Ex: smtp.titan.email"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Porta</Label>
+                    <Input
+                      type="number"
+                      value={form.smtp_port}
+                      onChange={(e) => setForm({ ...form, smtp_port: Number(e.target.value) || 587 })}
+                      placeholder="587"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Usuário SMTP</Label>
+                    <Input
+                      value={form.smtp_user}
+                      onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
+                      placeholder="comercial@empresa.com"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Senha SMTP</Label>
+                    <Input
+                      type="password"
+                      value={form.smtp_pass}
+                      onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
+                      placeholder="••••••••"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">E-mail Remetente</Label>
+                    <Input
+                      value={form.smtp_from}
+                      onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
+                      placeholder="Ex: comercial@empresa.com"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Nome Remetente</Label>
+                    <Input
+                      value={form.smtp_from_name}
+                      onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
+                      placeholder="Ex: Frotlog Comercial"
+                      className="text-xs h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <DialogFooter className="gap-2 pt-3">
-              <Button variant="outline" onClick={() => setModalOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
                 Cancelar
               </Button>
               <Button onClick={() => save.mutate()} disabled={save.isPending}>

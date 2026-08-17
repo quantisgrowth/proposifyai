@@ -20,6 +20,7 @@ import { Route as AuthenticatedNovaRouteImport } from './routes/_authenticated/n
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedPropostasRouteImport } from './routes/_authenticated/propostas'
 import { Route as PropostaCodeRouteImport } from './routes/proposta.$code'
+import { Route as ApiV1ProposalsRouteImport } from './routes/api.v1.proposals'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -75,6 +76,11 @@ const PropostaCodeRoute = PropostaCodeRouteImport.update({
   path: '/proposta/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1ProposalsRoute = ApiV1ProposalsRouteImport.update({
+  id: '/api/v1/proposals',
+  path: '/api/v1/proposals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/produtos': typeof AuthenticatedProdutosRoute
   '/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
+  '/api/v1/proposals': typeof ApiV1ProposalsRoute
 }
 export interface FileRoutesByTo {
   '/admin-login': typeof AdminLoginRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/v1/proposals': typeof ApiV1ProposalsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/_authenticated/propostas': typeof AuthenticatedPropostasRoute
   '/proposta/$code': typeof PropostaCodeRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/v1/proposals': typeof ApiV1ProposalsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/propostas'
     | '/proposta/$code'
+    | '/api/v1/proposals'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin-login'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/propostas'
     | '/proposta/$code'
     | '/'
+    | '/api/v1/proposals'
   id:
     | '__root__'
     | '/_authenticated'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/_authenticated/propostas'
     | '/proposta/$code'
     | '/_authenticated/'
+    | '/api/v1/proposals'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -159,6 +171,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AuthRoute: typeof AuthRoute
   PropostaCodeRoute: typeof PropostaCodeRoute
+  ApiV1ProposalsRoute: typeof ApiV1ProposalsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -240,6 +253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PropostaCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/proposals': {
+      id: '/api/v1/proposals'
+      path: '/api/v1/proposals'
+      fullPath: '/api/v1/proposals'
+      preLoaderRoute: typeof ApiV1ProposalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AuthRoute: AuthRoute,
   PropostaCodeRoute: PropostaCodeRoute,
+  ApiV1ProposalsRoute: ApiV1ProposalsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -157,8 +157,8 @@ function ProposalView() {
   const [hasSession, setHasSession] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Sharing email modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
@@ -264,6 +264,44 @@ function ProposalView() {
     const body = encodeURIComponent(emailBody);
     window.location.href = `mailto:${customEmail}?subject=${subject}&body=${body}`;
     setShareModalOpen(false);
+  };
+
+  const handleSendOfficialEmail = async () => {
+    if (!data) return;
+    setSendingEmail(true);
+    toast.loading("Enviando proposta por e-mail...", { id: "send-proposal-email" });
+    try {
+      const { sendOfficialProposalEmailServer } = await import("@/lib/email.server");
+      
+      const htmlBody = emailBody.replace(/\n/g, "<br>");
+      
+      const res = await sendOfficialProposalEmailServer({
+        proposalId: data.id,
+        toEmail: customEmail,
+        subject: emailSubject,
+        bodyHtml: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #334155;">
+            <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">${htmlBody}</p>
+          </div>
+        `,
+      });
+
+      if (res.success) {
+        toast.success(
+          res.method === "smtp"
+            ? "E-mail enviado via SMTP corporativo!"
+            : "E-mail enviado com sucesso!",
+          { id: "send-proposal-email" }
+        );
+        setShareModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["proposal-view", code] });
+        queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      }
+    } catch (err: any) {
+      toast.error("Erro ao enviar e-mail: " + err.message, { id: "send-proposal-email" });
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   const handleGenerateOfficial = async () => {
@@ -657,14 +695,17 @@ function ProposalView() {
 
           <DialogFooter className="gap-2 pt-3 flex-col sm:flex-row-reverse sm:justify-between items-stretch">
             <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
-              <Button onClick={handleSendLocalEmail} className="flex-1 sm:flex-none font-semibold gap-1.5">
-                <ExternalLink className="size-4" /> Abrir no E-mail
+              <Button onClick={handleSendOfficialEmail} disabled={sendingEmail} className="flex-1 sm:flex-none font-semibold gap-1.5">
+                <Mail className="size-4" /> {sendingEmail ? "Enviando..." : "Enviar E-mail"}
               </Button>
               <Button variant="outline" onClick={() => setShareModalOpen(false)}>
                 Cancelar
               </Button>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button type="button" variant="secondary" onClick={handleSendLocalEmail} className="flex-1 sm:flex-none gap-1">
+                <ExternalLink className="size-3.5" /> Abrir no E-mail Local
+              </Button>
               <Button type="button" variant="secondary" onClick={handleCopyMessage} className="flex-1 sm:flex-none gap-1">
                 <Copy className="size-3.5" /> Copiar Mensagem
               </Button>

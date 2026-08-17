@@ -26,6 +26,8 @@ import { proposalsQuery } from "@/lib/proposals";
 import { brl } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type NavItem = {
   to: string;
@@ -58,13 +60,13 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     }
   }, []);
 
-  const { user, profile, company, isAdmin } = useAuth();
+  const { user, profile, company, isAdmin, activeCompanyId, accessibleCompanies, setActiveCompany } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Filtrar itens de navegação (apenas admins vêem a aba de admin)
   const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
 
-  const { data: proposalsData } = useQuery(proposalsQuery(profile?.company_id));
+  const { data: proposalsData } = useQuery(proposalsQuery(activeCompanyId));
   const list = proposalsData ?? [];
   const sent = list.filter((p) => p.status !== "draft").length;
   const accepted = list.filter((p) => p.status === "accepted").length;
@@ -130,6 +132,27 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
             <X className="size-5" />
           </button>
         </div>
+
+        {/* Company Selector dropdown */}
+        {!sidebarCollapsed && (accessibleCompanies.length > 1 || isAdmin) && (
+          <div className="mb-4 px-1">
+            <Label className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground block mb-1">
+              Empresa Ativa
+            </Label>
+            <Select value={activeCompanyId || ""} onValueChange={setActiveCompany}>
+              <SelectTrigger className="h-8 text-xs bg-slate-50/50 dark:bg-slate-900/50 border-border">
+                <SelectValue placeholder="Selecione a empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                {accessibleCompanies.map((c) => (
+                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Navigation Section */}
         <div className="space-y-1 pt-2">

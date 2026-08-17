@@ -9,6 +9,9 @@ type AuthContextType = {
   isAdmin: boolean;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  activeCompanyId: string | null;
+  accessibleCompanies: Company[];
+  setActiveCompany: (companyId: string) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,32 +21,92 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   loading: true,
   refreshProfile: async () => {},
+  activeCompanyId: null,
+  accessibleCompanies: [],
+  setActiveCompany: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
+  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(null);
+  const [accessibleCompanies, setAccessibleCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data: profData, error: profErr } = await supabase
         .from("profiles")
-        .select("*, company:companies(*)")
+        .select("*")
         .eq("id", userId)
         .maybeSingle();
 
-      if (!error && data) {
-        setProfile(data as unknown as Profile);
-        setCompany((data as any).company ?? null);
-      } else {
-        // Fallback: se o perfil ainda não existe no banco, busca a primeira empresa
+      if (profErr || !profData) {
         const { data: comp } = await supabase.from("companies").select("*").limit(1).maybeSingle();
         setCompany(comp as unknown as Company);
+        setAccessibleCompanies(comp ? [comp as unknown as Company] : []);
+        setActiveCompanyId(comp?.id || null);
+        return;
       }
-    } catch {
-      // Silencioso
+
+      const profileObj = profData as unknown as Profile;
+      setProfile(profileObj);
+
+      // Fetch accessible companies based on user role
+      let companiesList: Company[] = [];
+      if (profileObj.role === "admin") {
+        const { data: allComps } = await supabase
+          .from("companies")
+          .select("*")
+          .order("name");
+        companiesList = (allComps ?? []) as unknown as Company[];
+      } else {
+        const { data: mappedComps } = await supabase
+          .from("profile_companies")
+          .select("companies(*)")
+          .eq("profile_id", userId);
+
+        companiesList = (mappedComps
+          ?.map((m: any) => m.companies)
+          .filter(Boolean) ?? []) as unknown as Company[];
+
+        if (companiesList.length === 0 && profileObj.company_id) {
+          const { data: primaryComp } = await supabase
+            .from("companies")
+            .select("*")
+            .eq("id", profileObj.company_id)
+            .maybeSingle();
+          if (primaryComp) {
+            companiesList = [primaryComp as unknown as Company];
+          }
+        }
+      }
+
+      setAccessibleCompanies(companiesList);
+
+      let activeId = localStorage.getItem("active-company-id");
+      if (!activeId || !companiesList.some((c) => c.id === activeId)) {
+        activeId = profileObj.company_id || companiesList[0]?.id || null;
+        if (activeId) {
+          localStorage.setItem("active-company-id", activeId);
+        }
+      }
+      setActiveCompanyId(activeId);
+
+      const activeCompObj = companiesList.find((c) => c.id === activeId) || null;
+      setCompany(activeCompObj);
+    } catch (err) {
+      console.error("Error fetching profile and companies:", err);
+    }
+  };
+
+  const setActiveCompany = (companyId: string) => {
+    if (accessibleCompanies.some((c) => c.id === companyId)) {
+      setActiveCompanyId(companyId);
+      localStorage.setItem("active-company-id", companyId);
+      const activeCompObj = accessibleCompanies.find((c) => c.id === companyId) || null;
+      setCompany(activeCompObj);
     }
   };
 
@@ -56,6 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setProfile(null);
       setCompany(null);
+      setAccessibleCompanies([]);
+      setActiveCompanyId(null);
     }
     setLoading(false);
   };
@@ -70,6 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setCompany(null);
+        setAccessibleCompanies([]);
+        setActiveCompanyId(null);
       }
       setLoading(false);
     });
@@ -88,6 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: profile?.role === "admin",
         loading,
         refreshProfile,
+        activeCompanyId,
+        accessibleCompanies,
+        setActiveCompany,
       }}
     >
       {children}

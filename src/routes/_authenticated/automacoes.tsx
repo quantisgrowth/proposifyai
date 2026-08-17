@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Cpu,
@@ -101,6 +101,14 @@ function AutomationsPage() {
   // Webhook settings state
   const [webhookUrl, setWebhookUrl] = useState(company?.webhook_url || "");
   const [webhookSecret, setWebhookSecret] = useState(company?.webhook_secret || "");
+
+  // Sync state when company loads
+  useEffect(() => {
+    if (company) {
+      setWebhookUrl(company.webhook_url || "");
+      setWebhookSecret(company.webhook_secret || "");
+    }
+  }, [company]);
 
   // Safe window.location.origin for SSR
   const [origin, setOrigin] = useState("");

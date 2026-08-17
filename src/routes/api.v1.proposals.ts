@@ -279,6 +279,23 @@ export const Route = createFileRoute("/api/v1/proposals")({
             }
           }
 
+          // Fetch full client record for flow execution
+          const { data: client } = await supabaseAdmin
+            .from("clients")
+            .select("*")
+            .eq("id", clientId)
+            .maybeSingle();
+
+          // Execute visual automation flow in background
+          const { executeFlow } = await import("@/lib/flow-engine.server");
+          executeFlow(company.id, "crm.incoming_proposal", {
+            proposal,
+            client,
+            payload: body,
+          }).catch(err => {
+            console.error("[Flow Engine Error in API]:", err);
+          });
+ 
           const resBodySuccess = JSON.stringify({
             success: true,
             proposal_id: proposal.id,

@@ -9,6 +9,15 @@ export async function triggerWebhook(
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Execute visual automation flow in background
+    const { executeFlow } = await import("@/lib/flow-engine.server");
+    executeFlow(companyId, event, {
+      proposal,
+      client: proposal.clients
+    }).catch(err => {
+      console.error("[Flow Engine Error in Webhook]:", err);
+    });
+
     // Fetch webhook configuration
     const { data: company, error } = await supabaseAdmin
       .from("companies")

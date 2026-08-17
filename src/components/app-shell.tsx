@@ -19,6 +19,7 @@ import {
   Shield,
   UserCheck,
   LayoutGrid,
+  Cpu,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ const allNavItems: NavItem[] = [
   { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true, adminOnly: false },
   { to: "/produtos", label: "Catálogo de Produtos", icon: Package, adminOnly: false },
   { to: "/clientes", label: "Clientes", icon: Users, adminOnly: false },
+  { to: "/automacoes", label: "Automações", icon: Cpu, adminOnly: true },
   { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal, adminOnly: true },
 ];
 

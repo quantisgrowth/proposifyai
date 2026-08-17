@@ -21,6 +21,15 @@ export async function triggerWebhook(
       return;
     }
 
+    // Try to find the active flow for this event
+    const { data: activeFlow } = await supabaseAdmin
+      .from("automation_flows")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("trigger_type", event)
+      .eq("is_active", true)
+      .maybeSingle();
+
     const payload = {
       event,
       timestamp: new Date().toISOString(),
@@ -63,22 +72,55 @@ export async function triggerWebhook(
 
     console.log(`[Webhook] Dispatching to ${company.webhook_url} for event ${event}`);
 
-    const response = await fetch(company.webhook_url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Proposify-Signature": signature,
-        "X-Proposify-Event": event,
-      },
-      body: payloadStr,
-    });
+    // Helper to log outgoing integration
+    const logOutgoing = async (statusCodeVal: number | null, responseBodyVal: string | null, errMsgVal: string | null) => {
+      try {
+        await supabaseAdmin.from("integration_logs").insert({
+          company_id: companyId,
+          flow_id: activeFlow?.id || null,
+          direction: "outgoing",
+          event_type: event,
+          status_code: statusCodeVal,
+          payload: payload,
+          response_body: responseBodyVal,
+          error_message: errMsgVal
+        });
+      } catch (logErr) {
+        console.error("[Webhook Log Error]:", logErr);
+      }
+    };
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`[Webhook Error] Failed dispatch to ${company.webhook_url}: Status ${response.status} - ${text}`);
-    } else {
-      console.log(`[Webhook] Successfully dispatched to ${company.webhook_url}`);
+    let responseText = "";
+    let statusCode: number | null = null;
+    let errorMsg: string | null = null;
+
+    try {
+      const response = await fetch(company.webhook_url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Proposify-Signature": signature,
+          "X-Proposify-Event": event,
+        },
+        body: payloadStr,
+      });
+
+      statusCode = response.status;
+      responseText = await response.text();
+
+      if (!response.ok) {
+        errorMsg = `HTTP Error ${response.status}: ${responseText}`;
+        console.error(`[Webhook Error] Failed dispatch to ${company.webhook_url}: Status ${response.status} - ${responseText}`);
+      } else {
+        console.log(`[Webhook] Successfully dispatched to ${company.webhook_url}`);
+      }
+    } catch (fetchErr: any) {
+      errorMsg = fetchErr.message;
+      console.error("[Webhook Error] Failed to fetch webhook endpoint:", fetchErr);
     }
+
+    // Write log entry
+    await logOutgoing(statusCode, responseText || null, errorMsg);
   } catch (err) {
     console.error("[Webhook Error] Critical failure in triggerWebhook:", err);
   }

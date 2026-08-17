@@ -188,7 +188,7 @@ export const profilesQuery = {
   queryFn: async (): Promise<(Profile & { company: Company | null; company_ids: string[] })[]> => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*, company:companies(*), profile_companies(company_id)")
+      .select("*, company:companies!profiles_company_id_fkey(*), profile_companies(company_id)")
       .order("created_at", { ascending: false });
     if (error) throw error;
     
@@ -206,7 +206,7 @@ export const currentProfileQuery = (userId: string | null | undefined) => ({
     if (!userId) return null;
     const { data, error } = await supabase
       .from("profiles")
-      .select("*, company:companies(*)")
+      .select("*, company:companies!profiles_company_id_fkey(*)")
       .eq("id", userId)
       .maybeSingle();
     if (error) return null;

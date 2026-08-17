@@ -57,9 +57,13 @@ export type Database = {
       }
       companies: {
         Row: {
+          api_key: string | null
+          block_proposal_deletion: boolean
+          brand_color: string | null
           created_at: string
           default_payment_terms: string
           default_validity_days: number
+          delete_allowed_users: string[]
           document: string | null
           email: string | null
           fidelity_policy: string | null
@@ -69,16 +73,30 @@ export type Database = {
           name: string
           next_steps_text: string | null
           objective_text: string | null
+          only_view_own_proposals: boolean
           phone: string | null
+          require_all_fields: boolean
           scope_text: string | null
+          smtp_from: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_pass: string | null
+          smtp_port: number | null
+          smtp_user: string | null
           solution_name: string | null
           tagline: string | null
           updated_at: string
+          webhook_secret: string | null
+          webhook_url: string | null
         }
         Insert: {
+          api_key?: string | null
+          block_proposal_deletion?: boolean
+          brand_color?: string | null
           created_at?: string
           default_payment_terms?: string
           default_validity_days?: number
+          delete_allowed_users?: string[]
           document?: string | null
           email?: string | null
           fidelity_policy?: string | null
@@ -88,16 +106,30 @@ export type Database = {
           name: string
           next_steps_text?: string | null
           objective_text?: string | null
+          only_view_own_proposals?: boolean
           phone?: string | null
+          require_all_fields?: boolean
           scope_text?: string | null
+          smtp_from?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           solution_name?: string | null
           tagline?: string | null
           updated_at?: string
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Update: {
+          api_key?: string | null
+          block_proposal_deletion?: boolean
+          brand_color?: string | null
           created_at?: string
           default_payment_terms?: string
           default_validity_days?: number
+          delete_allowed_users?: string[]
           document?: string | null
           email?: string | null
           fidelity_policy?: string | null
@@ -107,11 +139,21 @@ export type Database = {
           name?: string
           next_steps_text?: string | null
           objective_text?: string | null
+          only_view_own_proposals?: boolean
           phone?: string | null
+          require_all_fields?: boolean
           scope_text?: string | null
+          smtp_from?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_pass?: string | null
+          smtp_port?: number | null
+          smtp_user?: string | null
           solution_name?: string | null
           tagline?: string | null
           updated_at?: string
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -245,6 +287,36 @@ export type Database = {
           },
         ]
       }
+      profile_companies: {
+        Row: {
+          company_id: string
+          profile_id: string
+        }
+        Insert: {
+          company_id: string
+          profile_id: string
+        }
+        Update: {
+          company_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_companies_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -352,8 +424,12 @@ export type Database = {
       proposals: {
         Row: {
           accepted_at: string | null
+          accepted_by_document: string | null
           accepted_by_email: string | null
+          accepted_by_ip: string | null
           accepted_by_name: string | null
+          accepted_by_user_agent: string | null
+          accepted_signature_url: string | null
           campaign_name: string | null
           client_id: string | null
           company_id: string | null
@@ -362,6 +438,8 @@ export type Database = {
           discount_amount: number
           fidelity_policy: string | null
           id: string
+          loss_description: string | null
+          loss_reason: string | null
           net_amount: number
           next_steps_text: string | null
           notes: string | null
@@ -377,8 +455,12 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          accepted_by_document?: string | null
           accepted_by_email?: string | null
+          accepted_by_ip?: string | null
           accepted_by_name?: string | null
+          accepted_by_user_agent?: string | null
+          accepted_signature_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null
@@ -387,6 +469,8 @@ export type Database = {
           discount_amount?: number
           fidelity_policy?: string | null
           id?: string
+          loss_description?: string | null
+          loss_reason?: string | null
           net_amount?: number
           next_steps_text?: string | null
           notes?: string | null
@@ -402,8 +486,12 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          accepted_by_document?: string | null
           accepted_by_email?: string | null
+          accepted_by_ip?: string | null
           accepted_by_name?: string | null
+          accepted_by_user_agent?: string | null
+          accepted_signature_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null
@@ -412,6 +500,8 @@ export type Database = {
           discount_amount?: number
           fidelity_policy?: string | null
           id?: string
+          loss_description?: string | null
+          loss_reason?: string | null
           net_amount?: number
           next_steps_text?: string | null
           notes?: string | null

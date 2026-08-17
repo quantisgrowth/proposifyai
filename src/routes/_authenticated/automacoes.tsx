@@ -1159,6 +1159,47 @@ function AutomationsPage() {
             {/* 1. CONFIGURATION FOR TRIGGER (FIELD MAPPING) */}
             {selectedNode?.type === "trigger" && (
               <div className="space-y-4">
+                {/* Webhook Endpoint Info Panel */}
+                <div className="rounded-lg border border-border bg-slate-50 dark:bg-slate-900/50 p-3.5 space-y-2.5">
+                  <div>
+                    <p className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                      <Terminal className="size-3.5 text-primary" /> Webhook da API de Entrada:
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+                      Configure no seu CRM (DataCrazy) um Webhook do tipo HTTP POST apontando para esta URL e inclua o cabeçalho de autenticação:
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <code className="flex-1 bg-slate-100 dark:bg-slate-950 p-2 rounded text-[10px] font-mono text-primary font-semibold select-all break-all border border-border/60">
+                      {origin || "http://localhost:3000"}/api/v1/proposals
+                    </code>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleCopyText(`${origin || "http://localhost:3000"}/api/v1/proposals`, "URL do Webhook copiada!")}
+                      className="text-[10px] font-bold h-8 px-2.5"
+                    >
+                      <Copy className="size-3 mr-1" /> Copiar URL
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <code className="flex-1 bg-slate-100 dark:bg-slate-950 p-2 rounded text-[10px] font-mono text-primary font-semibold select-all break-all border border-border/60">
+                      Authorization: Bearer {company?.api_key || "Não gerado"}
+                    </code>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleCopyText(`Bearer ${company?.api_key || ""}`, "Cabeçalho de Autorização copiado!")}
+                      className="text-[10px] font-bold h-8 px-2.5"
+                      disabled={!company?.api_key}
+                    >
+                      <Copy className="size-3 mr-1" /> Copiar Header
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center rounded-lg bg-indigo-500/10 border border-indigo-500/25 p-3">
                   <div className="flex items-start gap-2">
                     <HelpCircle className="size-4.5 text-primary shrink-0 mt-0.5" />

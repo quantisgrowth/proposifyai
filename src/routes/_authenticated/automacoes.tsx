@@ -102,6 +102,14 @@ function AutomationsPage() {
   const [webhookUrl, setWebhookUrl] = useState(company?.webhook_url || "");
   const [webhookSecret, setWebhookSecret] = useState(company?.webhook_secret || "");
 
+  // Safe window.location.origin for SSR
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setOrigin(window.location.origin);
+    }
+  }, []);
+
   // 1. Fetch Flows
   const { data: flows, isLoading: isLoadingFlows } = useQuery({
     queryKey: ["automation_flows", activeCompanyId],
@@ -670,7 +678,7 @@ function AutomationsPage() {
                       Configure a automação no DataCrazy CRM para fazer uma chamada HTTP POST no seguinte endereço:
                     </p>
                     <code className="block bg-slate-100 dark:bg-slate-950 p-2 rounded text-[10px] font-mono text-primary font-semibold select-all break-all border border-border/80">
-                      {window.location.origin}/api/v1/proposals
+                      {origin || "http://localhost:3000"}/api/v1/proposals
                     </code>
                     <p className="text-[10px] text-muted-foreground leading-normal pt-1">
                       Adicione o cabeçalho HTTP: <br />

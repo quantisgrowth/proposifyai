@@ -74,16 +74,6 @@ export type Database = {
           solution_name: string | null
           tagline: string | null
           updated_at: string
-          brand_color: string | null
-          api_key: string | null
-          webhook_url: string | null
-          webhook_secret: string | null
-          smtp_host: string | null
-          smtp_port: number | null
-          smtp_user: string | null
-          smtp_pass: string | null
-          smtp_from: string | null
-          smtp_from_name: string | null
         }
         Insert: {
           created_at?: string
@@ -103,16 +93,6 @@ export type Database = {
           solution_name?: string | null
           tagline?: string | null
           updated_at?: string
-          brand_color?: string | null
-          api_key?: string | null
-          webhook_url?: string | null
-          webhook_secret?: string | null
-          smtp_host?: string | null
-          smtp_port?: number | null
-          smtp_user?: string | null
-          smtp_pass?: string | null
-          smtp_from?: string | null
-          smtp_from_name?: string | null
         }
         Update: {
           created_at?: string
@@ -132,16 +112,6 @@ export type Database = {
           solution_name?: string | null
           tagline?: string | null
           updated_at?: string
-          brand_color?: string | null
-          api_key?: string | null
-          webhook_url?: string | null
-          webhook_secret?: string | null
-          smtp_host?: string | null
-          smtp_port?: number | null
-          smtp_user?: string | null
-          smtp_pass?: string | null
-          smtp_from?: string | null
-          smtp_from_name?: string | null
         }
         Relationships: []
       }
@@ -312,36 +282,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profile_companies: {
-        Row: {
-          company_id: string
-          profile_id: string
-        }
-        Insert: {
-          company_id: string
-          profile_id: string
-        }
-        Update: {
-          company_id?: string
-          profile_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profile_companies_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profile_companies_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

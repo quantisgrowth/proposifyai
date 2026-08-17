@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -131,11 +132,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const routerState = useRouterState();
+  const isNavigating = routerState.status === "pending";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        {isNavigating && (
+          <div className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-primary via-indigo-500 to-primary animate-pulse z-[99999]" />
+        )}
         <Outlet />
         <Toaster position="top-center" />
       </AuthProvider>

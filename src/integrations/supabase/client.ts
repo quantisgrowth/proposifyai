@@ -9,8 +9,8 @@ const DEFAULT_SUPABASE_KEY = [
 ].join(".");
 
 function createSupabaseClient() {
-  const SUPABASE_URL = DEFAULT_SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = DEFAULT_SUPABASE_KEY;
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_KEY;
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {

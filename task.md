@@ -1,9 +1,10 @@
-# Lista de Tarefas: Motor de Precificação de Pneus B2B (LB Tyres)
+# Lista de Tarefas — Fase 1: Importador/Exportador de Produtos & Índices de Performance
 
-- [x] Executar Migration SQL para criar os novos campos em `products` e `proposal_items` (Migração salva em `supabase/migrations/20260825203000_add_tire_fields.sql`)
-- [x] Atualizar tipos TypeScript em `src/lib/proposals.ts`
-- [x] Modificar cadastro de produtos (`produtos.tsx`) para incluir campos de pneus se a empresa for LB Tyres
-- [x] Modificar editor de propostas (`proposal-editor.tsx`) para processar pneu e regras financeiras dinâmicas
-- [x] Modificar visualizador de propostas (`proposal-document.tsx`) para renderizar pneu e diferencial competitivo executivo
-- [x] Atualizar endpoint de API (`api.v1.proposals.ts`) para suportar importação automatizada com `tire_item` e `financial_rules`
-- [x] Validar compilação do projeto e testar as implementações
+- [x] Criar migração SQL para adicionar índices compostos nas tabelas `products`, `proposals` e `clients` (Salvo em `supabase/migrations/20260825205000_add_performance_indexes.sql`)
+- [x] Adicionar botões "Importar Planilha" e "Exportar Planilha" na tela de Catálogo (`produtos.tsx`)
+- [x] Desenvolver modal de importação com opção de download de planilha modelo CSV
+- [x] Implementar parser client-side de CSV com suporte a separadores comuns (vírgula e ponto-e-vírgula)
+- [x] Criar visualizador de preview com tabela de validação (identificar pneus válidos, erros ou campos faltantes)
+- [x] Implementar inserção em lote (`bulk insert`) no Supabase dos produtos validados
+- [x] Implementar função de exportação que compila todos os produtos da empresa em CSV e faz o download
+- [x] Testar e compilar o projeto para garantir integridade

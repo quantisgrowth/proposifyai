@@ -13,6 +13,8 @@ import {
   ShieldAlert,
   HelpCircle,
   Copy,
+  Upload,
+  Download,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -92,6 +94,12 @@ function ProductsPage() {
   const qc = useQueryClient();
   const { profile, company, isAdmin, activeCompanyId } = useAuth();
   const { data: companies } = useQuery(companiesQuery);
+
+  // States for CSV import
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
 
   // Se for admin, permite selecionar qualquer empresa ou "all"
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
@@ -273,6 +281,237 @@ function ProductsPage() {
       toast.error("Não foi possível remover: o serviço está em uso em alguma proposta."),
   });
 
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "Nome",
+      "Descricao",
+      "Preco_Base_Avista",
+      "Marca",
+      "Modelo",
+      "Medida",
+      "Posicao",
+      "Lonas",
+      "Sulco_mm",
+      "Indice_Carga",
+      "Forma_Pagamento",
+      "Condicao_Prazo",
+      "Taxa_Percentual",
+      "Parcelas"
+    ];
+    
+    const rows = [
+      headers.join(";"),
+      `XBRI CAR-603 - 295/80R22.5;Pneu de alta tração e durabilidade;1500.00;XBRI;CAR-603;295/80R22.5;Tração;18;22.0;152/149M;BOLETO_PRAZO;PM60;0.04;3`,
+      `Neo Curve P1 - 275/80R22.5;Pneu direcional premium;1420.00;Chengshan;Neo Curve P1;275/80R22.5;Direcional;16;15.5;149/146L;PIX_AVISTA;PM30;0.00;1`
+    ];
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_importacao_proposify.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportCSV = () => {
+    if (!products || products.length === 0) {
+      toast.error("Nenhum produto cadastrado para exportar.");
+      return;
+    }
+
+    const headers = [
+      "Nome",
+      "Descricao",
+      "Preco_Base_Avista",
+      "Marca",
+      "Modelo",
+      "Medida",
+      "Posicao",
+      "Lonas",
+      "Sulco_mm",
+      "Indice_Carga",
+      "Forma_Pagamento",
+      "Condicao_Prazo",
+      "Taxa_Percentual",
+      "Parcelas"
+    ];
+
+    const rows = [
+      headers.join(";"),
+      ...products.map((p) => [
+        p.name || "",
+        (p.description || "").replace(/;/g, ","),
+        p.base_price_avista || p.unit_price || 0,
+        p.marca || "",
+        p.modelo || "",
+        p.medida || "",
+        p.posicao || "",
+        p.lonas_pr || "",
+        p.profundidade_sulco_mm || "",
+        p.indice_carga_velocidade || "",
+        p.forma_pagamento || "",
+        p.condicao_escolhida || "",
+        p.taxa_percentual || "",
+        p.numero_parcelas || ""
+      ].join(";"))
+    ];
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `catalogo_produtos_${currentCompany?.name?.toLowerCase().replace(/\s+/g, "_") || "proposify"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Catálogo exportado com sucesso!");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseCSV(text);
+    };
+    reader.readAsText(file);
+  };
+
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) {
+      toast.error("O arquivo está vazio ou não possui dados.");
+      return;
+    }
+
+    const headerLine = lines[0]!;
+    const delimiter = headerLine.includes(";") ? ";" : ",";
+    const rawHeaders = headerLine.split(delimiter).map((h) => h.trim().replace(/^["']|["']$/g, ""));
+
+    const parsed: any[] = [];
+    const errorsList: string[] = [];
+
+    const getHeaderIdx = (name: string) => {
+      return rawHeaders.findIndex((h) => h.toLowerCase() === name.toLowerCase());
+    };
+
+    const nameIdx = getHeaderIdx("Nome");
+    const descIdx = getHeaderIdx("Descricao");
+    const priceIdx = getHeaderIdx("Preco_Base_Avista");
+    const brandIdx = getHeaderIdx("Marca");
+    const modelIdx = getHeaderIdx("Modelo");
+    const sizeIdx = getHeaderIdx("Medida");
+    const posIdx = getHeaderIdx("Posicao");
+    const lonasIdx = getHeaderIdx("Lonas");
+    const sulcoIdx = getHeaderIdx("Sulco_mm");
+    const indexIdx = getHeaderIdx("Indice_Carga");
+    const payIdx = getHeaderIdx("Forma_Pagamento");
+    const condIdx = getHeaderIdx("Condicao_Prazo");
+    const rateIdx = getHeaderIdx("Taxa_Percentual");
+    const installmentIdx = getHeaderIdx("Parcelas");
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]!;
+      const regex = new RegExp(`\\s*${delimiter}\\s*(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)`);
+      const cols = line.split(regex).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+
+      if (cols.length < 3) {
+        errorsList.push(`Linha ${i + 1}: Quantidade de colunas insuficiente.`);
+        continue;
+      }
+
+      const getVal = (idx: number, fallback = "") => (idx !== -1 && cols[idx] !== undefined ? cols[idx] : fallback);
+
+      const rawName = getVal(nameIdx);
+      const marca = getVal(brandIdx);
+      const modelo = getVal(modelIdx);
+      const medida = getVal(sizeIdx);
+      const posicao = getVal(posIdx, "Direcional");
+      const lonas_pr = parseInt(getVal(lonasIdx)) || null;
+      const profundidade_sulco_mm = parseFloat(getVal(sulcoIdx)) || null;
+      const indice_carga_velocidade = getVal(indexIdx);
+      const basePrice = parseFloat(getVal(priceIdx)) || 0;
+      const forma_pagamento = getVal(payIdx, "PIX_AVISTA");
+      const condicao_escolhida = getVal(condIdx, "PM30");
+      const taxa_percentual = parseFloat(getVal(rateIdx)) || 0;
+      const numero_parcelas = parseInt(getVal(installmentIdx)) || 1;
+
+      const finalName = rawName || (marca && modelo && medida ? `${marca} ${modelo} - ${medida}` : `Produto ${i}`);
+
+      if (!marca || !modelo || !medida) {
+        if (!rawName || isNaN(basePrice)) {
+          errorsList.push(`Linha ${i + 1}: Dados de pneu incompletos (Marca, Modelo, Medida são obrigatórios) ou nome/preço inválido.`);
+          continue;
+        }
+      }
+
+      parsed.push({
+        name: finalName,
+        description: getVal(descIdx) || null,
+        base_price_avista: basePrice || null,
+        marca: marca || null,
+        modelo: modelo || null,
+        medida: medida || null,
+        posicao: posicao || null,
+        lonas_pr,
+        profundidade_sulco_mm,
+        indice_carga_velocidade: indice_carga_velocidade || null,
+        forma_pagamento: forma_pagamento || null,
+        condicao_escolhida: condicao_escolhida || null,
+        taxa_percentual,
+        numero_parcelas,
+        unit_price: Number((basePrice * (1 + taxa_percentual)).toFixed(2)) || basePrice,
+        pricing_type: "one_time",
+        active: true,
+      });
+    }
+
+    setImportPreview(parsed);
+    setImportErrors(errorsList);
+  };
+
+  const handleImportSubmit = async () => {
+    if (importPreview.length === 0) {
+      toast.error("Nenhum produto válido para importar.");
+      return;
+    }
+
+    const targetCompanyId = activeCompanyFilter || company?.id;
+    if (!targetCompanyId) {
+      toast.error("Por favor, selecione uma empresa antes de importar.");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const itemsData = importPreview.map((item) => ({
+        ...item,
+        company_id: targetCompanyId,
+      }));
+
+      const { error } = await supabase.from("products").insert(itemsData);
+      if (error) throw error;
+
+      toast.success(`${importPreview.length} produtos importados com sucesso!`);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setImportPreview([]);
+      setImportErrors([]);
+      setImportModalOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erro na importação: " + e.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     return (products ?? []).filter((p) => {
@@ -295,9 +534,25 @@ function ProductsPage() {
             Defina preços praticados, limites de desconto para os vendedores e tabelas de faixas por volume.
           </p>
         </div>
-        <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0">
-          <Plus className="size-4" /> Novo Serviço / Produto
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setImportModalOpen(true)}
+            variant="outline"
+            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
+            <Upload className="size-4" /> Importar Planilha
+          </Button>
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
+            <Download className="size-4" /> Exportar Planilha
+          </Button>
+          <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0 font-semibold">
+            <Plus className="size-4" /> Novo Serviço / Produto
+          </Button>
+        </div>
       </div>
 
       {/* Barra de Filtros & Busca */}
@@ -864,6 +1119,125 @@ function ProductsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE IMPORTAÇÃO DE PLANILHA CSV */}
+      <Dialog open={importModalOpen} onOpenChange={(open) => {
+        setImportModalOpen(open);
+        if (!open) {
+          setImportPreview([]);
+          setImportErrors([]);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="size-5 text-primary" /> Importar Catálogo via Planilha CSV
+            </DialogTitle>
+            <DialogDescription>
+              Baixe a planilha modelo de exemplo, preencha os produtos ou pneus de sua empresa e faça o upload para realizar o cadastro em lote.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-secondary/10 p-4 rounded-lg border border-border">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Passo 1: Baixe o modelo oficial</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  A planilha deve seguir a estrutura de colunas e cabeçalhos oficiais.
+                </p>
+              </div>
+              <Button type="button" onClick={handleDownloadTemplate} size="sm" variant="outline" className="gap-1.5 shrink-0">
+                <Download className="size-3.5" /> Baixar Modelo CSV
+              </Button>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-semibold text-foreground">Passo 2: Selecione o arquivo preenchido (.csv)</Label>
+              <div className="border border-dashed border-border rounded-lg p-5 flex flex-col items-center justify-center bg-background gap-2 hover:border-primary/50 transition-colors">
+                <Upload className="size-8 text-muted-foreground" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/95 cursor-pointer"
+                />
+                <p className="text-[10px] text-muted-foreground">Formato aceito: CSV delimitado por vírgula (,) ou ponto e vírgula (;)</p>
+              </div>
+            </div>
+
+            {importErrors.length > 0 && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="size-4 shrink-0" /> Avisos / Erros encontrados na planilha:
+                </p>
+                <ul className="list-disc list-inside max-h-32 overflow-y-auto pl-1 space-y-0.5">
+                  {importErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {importPreview.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-foreground">Passo 3: Visualizar Produtos identificados ({importPreview.length})</Label>
+                <div className="border border-border rounded-lg overflow-x-auto max-h-64">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-semibold">
+                        <th className="p-2">Nome do Produto</th>
+                        <th className="p-2">Marca / Medida</th>
+                        <th className="p-2 text-right">Preço Vista</th>
+                        <th className="p-2 text-center">Taxa</th>
+                        <th className="p-2 text-center">Parcelas</th>
+                        <th className="p-2 text-right">Preço Prazo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {importPreview.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-secondary/10">
+                          <td className="p-2 font-medium">{item.name}</td>
+                          <td className="p-2 text-muted-foreground">
+                            {item.medida ? `${item.marca} · ${item.medida}` : "Produto Geral"}
+                          </td>
+                          <td className="p-2 text-right tabular-nums">
+                            {item.base_price_avista ? brl(item.base_price_avista) : "—"}
+                          </td>
+                          <td className="p-2 text-center tabular-nums">
+                            {item.taxa_percentual ? `${(item.taxa_percentual * 100).toFixed(2)}%` : "0%"}
+                          </td>
+                          <td className="p-2 text-center">{item.numero_parcelas}x</td>
+                          <td className="p-2 text-right tabular-nums font-semibold">{brl(item.unit_price)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setImportModalOpen(false);
+                setImportPreview([]);
+                setImportErrors([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImportSubmit}
+              disabled={importing || importPreview.length === 0}
+              className="gap-1.5"
+            >
+              {importing ? "Salvando..." : "Confirmar Importação"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppShell>

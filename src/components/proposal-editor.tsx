@@ -80,6 +80,19 @@ type LineItem = {
   item_adjustment_mode: "none" | "discount_percent" | "discount_fixed" | "surcharge_percent" | "surcharge_fixed";
   item_adjustment_val: number;
   is_included: boolean;
+  // Tire B2B specifics snapshot
+  modelo?: string | null;
+  medida?: string | null;
+  marca?: string | null;
+  posicao?: string | null;
+  lonas_pr?: number | null;
+  profundidade_sulco_mm?: number | null;
+  indice_carga_velocidade?: string | null;
+  base_price_avista?: number | null;
+  forma_pagamento?: string | null;
+  condicao_escolhida?: string | null;
+  taxa_percentual?: number | null;
+  numero_parcelas?: number | null;
 };
 
 const emptyItem = (): LineItem => ({
@@ -98,6 +111,18 @@ const emptyItem = (): LineItem => ({
   item_adjustment_mode: "none",
   item_adjustment_val: 0,
   is_included: false,
+  modelo: null,
+  medida: null,
+  marca: null,
+  posicao: null,
+  lonas_pr: null,
+  profundidade_sulco_mm: null,
+  indice_carga_velocidade: null,
+  base_price_avista: null,
+  forma_pagamento: null,
+  condicao_escolhida: null,
+  taxa_percentual: null,
+  numero_parcelas: null,
 });
 
 const addDays = (days: number) => {
@@ -148,6 +173,8 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
   const activeCompany = useMemo(() => {
     return companies?.find((c) => c.id === activeCompanyId) ?? userCompany ?? null;
   }, [companies, activeCompanyId, userCompany]);
+
+  const isLBTyres = activeCompany?.name?.toLowerCase().includes("lb tyres") || false;
 
   const { data: clients } = useQuery(clientsQuery(activeCompanyId));
   const { data: products } = useQuery(productsQuery(activeCompanyId));
@@ -214,7 +241,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         description: i.description ?? "",
         pricing_type: i.pricing_type,
         quantity: Number(i.quantity),
-        base_price: Number(i.unit_price),
+        base_price: i.base_price_avista ? Number(i.base_price_avista) : Number(i.unit_price),
         unit_price: Number(i.unit_price),
         original_price: i.original_price ? Number(i.original_price) : null,
         min_price: (i as any).min_price ? Number((i as any).min_price) : null,
@@ -224,6 +251,19 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         item_adjustment_mode: "none",
         item_adjustment_val: 0,
         is_included: i.is_included ?? false,
+        // Tire fields snapshot
+        modelo: i.modelo || null,
+        medida: i.medida || null,
+        marca: i.marca || null,
+        posicao: i.posicao || null,
+        lonas_pr: i.lonas_pr ? Number(i.lonas_pr) : null,
+        profundidade_sulco_mm: i.profundidade_sulco_mm ? Number(i.profundidade_sulco_mm) : null,
+        indice_carga_velocidade: i.indice_carga_velocidade || null,
+        base_price_avista: i.base_price_avista ? Number(i.base_price_avista) : null,
+        forma_pagamento: i.forma_pagamento || null,
+        condicao_escolhida: i.condicao_escolhida || null,
+        taxa_percentual: i.taxa_percentual ? Number(i.taxa_percentual) : null,
+        numero_parcelas: i.numero_parcelas ? Number(i.numero_parcelas) : null,
       }))
     );
     setDiscountMode("fixed");
@@ -258,6 +298,19 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       pricing_tier_notes: i.pricing_tier_notes,
       is_included: i.is_included,
       total_price: i.quantity * i.unit_price,
+      // Tire snap
+      modelo: i.modelo,
+      medida: i.medida,
+      marca: i.marca,
+      posicao: i.posicao,
+      lonas_pr: i.lonas_pr,
+      profundidade_sulco_mm: i.profundidade_sulco_mm,
+      indice_carga_velocidade: i.indice_carga_velocidade,
+      base_price_avista: i.base_price_avista,
+      forma_pagamento: i.forma_pagamento,
+      condicao_escolhida: i.condicao_escolhida,
+      taxa_percentual: i.taxa_percentual,
+      numero_parcelas: i.numero_parcelas,
     }));
 
   const updateItem = (key: string, patch: Partial<LineItem>) => {
@@ -266,7 +319,12 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         if (item.key !== key) return item;
         const updated = { ...item, ...patch };
 
-        if (patch.item_adjustment_mode !== undefined || patch.item_adjustment_val !== undefined) {
+        if (updated.medida) {
+          const avista = Number(updated.base_price_avista) || 0;
+          const taxa = Number(updated.taxa_percentual) || 0;
+          updated.unit_price = Number((avista * (1 + taxa)).toFixed(2));
+          updated.base_price = avista;
+        } else if (patch.item_adjustment_mode !== undefined || patch.item_adjustment_val !== undefined) {
           const base = updated.base_price || updated.unit_price;
           let calculated = base;
           const val = updated.item_adjustment_val || 0;
@@ -305,7 +363,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       title: product.name,
       description: product.description ?? "",
       pricing_type: product.pricing_type,
-      base_price: price,
+      base_price: product.base_price_avista ? Number(product.base_price_avista) : price,
       unit_price: price,
       original_price: null,
       min_price: product.min_price ? Number(product.min_price) : null,
@@ -315,6 +373,19 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       item_adjustment_mode: "none",
       item_adjustment_val: 0,
       is_included: price === 0,
+      // copy tire B2B specific fields
+      modelo: product.modelo || null,
+      medida: product.medida || null,
+      marca: product.marca || null,
+      posicao: product.posicao || null,
+      lonas_pr: product.lonas_pr ? Number(product.lonas_pr) : null,
+      profundidade_sulco_mm: product.profundidade_sulco_mm ? Number(product.profundidade_sulco_mm) : null,
+      indice_carga_velocidade: product.indice_carga_velocidade || null,
+      base_price_avista: product.base_price_avista ? Number(product.base_price_avista) : null,
+      forma_pagamento: product.forma_pagamento || null,
+      condicao_escolhida: product.condicao_escolhida || null,
+      taxa_percentual: product.taxa_percentual ? Number(product.taxa_percentual) : null,
+      numero_parcelas: product.numero_parcelas ? Number(product.numero_parcelas) : null,
     });
   };
 
@@ -428,19 +499,35 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
 
       await supabase.from("proposal_items").delete().eq("proposal_id", proposalId!);
 
-      const rows = docItems.map((item, index) => ({
-        proposal_id: proposalId!,
-        product_id: items[index]?.product_id || null,
-        title: item.title,
-        description: item.description || null,
-        pricing_type: item.pricing_type,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        original_price: item.original_price || null,
-        is_included: item.is_included || false,
-        total_price: item.total_price,
-        position: index + 1,
-      }));
+      const rows = docItems.map((item, index) => {
+        const original = items[index];
+        return {
+          proposal_id: proposalId!,
+          product_id: original?.product_id || null,
+          title: item.title,
+          description: item.description || null,
+          pricing_type: item.pricing_type,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          original_price: item.original_price || null,
+          is_included: item.is_included || false,
+          total_price: item.total_price,
+          position: index + 1,
+          // snapshots
+          modelo: original?.modelo || null,
+          medida: original?.medida || null,
+          marca: original?.marca || null,
+          posicao: original?.posicao || null,
+          lonas_pr: original?.lonas_pr ? Number(original.lonas_pr) : null,
+          profundidade_sulco_mm: original?.profundidade_sulco_mm ? Number(original.profundidade_sulco_mm) : null,
+          indice_carga_velocidade: original?.indice_carga_velocidade || null,
+          base_price_avista: original?.base_price_avista ? Number(original.base_price_avista) : null,
+          forma_pagamento: original?.forma_pagamento || null,
+          condicao_escolhida: original?.condicao_escolhida || null,
+          taxa_percentual: original?.taxa_percentual ? Number(original.taxa_percentual) : null,
+          numero_parcelas: original?.numero_parcelas ? Number(original.numero_parcelas) : null,
+        };
+      });
 
       const { error: itemsError } = await supabase.from("proposal_items").insert(rows);
       if (itemsError) throw itemsError;
@@ -738,119 +825,227 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
                     </Select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs">Qtd. / Transações</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(item.key, { quantity: Number(e.target.value) || 1 })
-                        }
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label className="text-xs font-semibold text-foreground">Condição Especial (R$)</Label>
-                      <CurrencyInput
-                        value={item.unit_price}
-                        onChange={(val) => updateItem(item.key, { unit_price: val })}
-                        placeholder="R$ 0,00"
-                      />
-                    </div>
-                  </div>
-
-                  {hasMinViolation ? (
-                    <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-medium">
-                      <AlertTriangle className="size-4 shrink-0" />
-                      <span>
-                        Atenção: O valor de <strong>{brl(item.unit_price)}</strong> está abaixo do piso mínimo permitido de <strong>{brl(item.min_price!)}</strong>.
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {hasMaxViolation ? (
-                    <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 text-xs font-medium">
-                      <AlertTriangle className="size-4 shrink-0" />
-                      <span>
-                        Atenção: O valor de <strong>{brl(item.unit_price)}</strong> ultrapassa o teto máximo permitido de <strong>{brl(item.max_price!)}</strong>.
-                      </span>
-                    </div>
-                  ) : null}
-
-                  <div className="grid gap-2 sm:col-span-2 bg-secondary/20 p-3 rounded-lg border border-border">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <Sparkles className="size-3.5 text-primary" /> Ajuste Comercial no Item (Desconto / Acréscimo)
-                      </Label>
-                      {item.min_price || item.max_price ? (
-                        <span className="text-[10px] text-muted-foreground">
-                          Limites: Mín {item.min_price ? brl(item.min_price) : "—"} · Máx {item.max_price ? brl(item.max_price) : "—"}
+                  {item.medida ? (
+                    <div className="sm:col-span-2 rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3 mt-2">
+                      <div className="flex items-center justify-between border-b border-primary/10 pb-1.5">
+                        <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                          🚗 Precificação de Pneu (Snap B2B)
                         </span>
-                      ) : null}
-                    </div>
+                        <span className="text-[10px] text-primary/80 font-bold bg-primary/10 px-2 py-0.5 rounded">
+                          {item.marca} {item.modelo} · {item.medida}
+                        </span>
+                      </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2 items-center pt-1">
-                      <Select
-                        value={item.item_adjustment_mode}
-                        onValueChange={(v) =>
-                          updateItem(item.key, { item_adjustment_mode: v as any })
-                        }
-                      >
-                        <SelectTrigger className="h-8 text-xs w-[180px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem ajuste no item</SelectItem>
-                          <SelectItem value="discount_percent">Desconto (%)</SelectItem>
-                          <SelectItem value="discount_fixed">Desconto (R$)</SelectItem>
-                          <SelectItem value="surcharge_percent">Acréscimo (%)</SelectItem>
-                          <SelectItem value="surcharge_fixed">Acréscimo (R$)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Preço à Vista</Label>
+                          <CurrencyInput
+                            value={item.base_price_avista || 0}
+                            onChange={(val) => updateItem(item.key, { base_price_avista: val })}
+                            placeholder="R$ 0,00"
+                            className="h-8.5 text-xs"
+                          />
+                        </div>
 
-                      {item.item_adjustment_mode !== "none" ? (
-                        <div className="flex items-center gap-2">
-                          {item.item_adjustment_mode.includes("fixed") ? (
-                            <CurrencyInput
-                              value={item.item_adjustment_val || 0}
-                              onChange={(val) =>
-                                updateItem(item.key, { item_adjustment_val: val })
-                              }
-                              placeholder="Ex: R$ 1,50"
-                              className="h-8 text-xs"
-                            />
-                          ) : (
-                            <div className="relative flex items-center flex-1">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={100}
-                                step="0.1"
-                                value={item.item_adjustment_val || ""}
-                                onChange={(e) =>
-                                  updateItem(item.key, { item_adjustment_val: Number(e.target.value) || 0 })
-                                }
-                                placeholder="Ex: 10"
-                                className="h-8 text-xs pr-7 text-right font-medium"
-                              />
-                              <span className="absolute right-2.5 text-xs text-muted-foreground font-semibold">%</span>
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Forma de Pagamento</Label>
+                          <Select
+                            value={item.forma_pagamento ?? "PIX_AVISTA"}
+                            onValueChange={(val) => updateItem(item.key, { forma_pagamento: val })}
+                          >
+                            <SelectTrigger className="h-8.5 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PIX_AVISTA">PIX à Vista</SelectItem>
+                              <SelectItem value="BOLETO_PRAZO">Boleto a Prazo</SelectItem>
+                              <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Condição</Label>
+                          <Input
+                            value={item.condicao_escolhida ?? ""}
+                            onChange={(e) => updateItem(item.key, { condicao_escolhida: e.target.value })}
+                            placeholder="Ex: PM60"
+                            className="h-8.5 text-xs"
+                          />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Taxa Percentual (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.taxa_percentual ? Number((item.taxa_percentual * 100).toFixed(2)) : ""}
+                            onChange={(e) => {
+                              const rate = parseFloat(e.target.value) / 100 || 0;
+                              updateItem(item.key, { taxa_percentual: rate });
+                            }}
+                            placeholder="Ex: 4.00"
+                            className="h-8.5 text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 items-end">
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Parcelas</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="12"
+                            value={item.numero_parcelas || 1}
+                            onChange={(e) => updateItem(item.key, { numero_parcelas: parseInt(e.target.value) || 1 })}
+                            placeholder="1"
+                            className="h-8.5 text-xs"
+                          />
+                        </div>
+
+                        <div className="grid gap-1">
+                          <Label className="text-[10px] text-muted-foreground">Quantidade</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(item.key, { quantity: Number(e.target.value) || 1 })}
+                            className="h-8.5 text-xs"
+                          />
+                        </div>
+
+                        <div className="grid gap-1 col-span-2 bg-primary/10 rounded-lg p-2 text-[11px] text-primary font-medium border border-primary/20 space-y-1.5">
+                          <div className="flex justify-between">
+                            <span>Total Unitário: <strong>{brl(item.unit_price)}</strong></span>
+                            <span>Plano: <strong>{item.numero_parcelas}x de {brl(item.unit_price / (item.numero_parcelas || 1))}</strong></span>
+                          </div>
+                          {item.profundidade_sulco_mm ? (
+                            <div className="text-[9px] text-primary/80 border-t border-primary/10 pt-1 flex justify-between">
+                              <span>Custo por mm: <strong>{brl((item.base_price_avista || 0) / Number(item.profundidade_sulco_mm))}/mm</strong></span>
+                              <span>Sulco: {item.profundidade_sulco_mm}mm | Lonas: {item.lonas_pr}PR</span>
                             </div>
-                          )}
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs">Qtd. / Transações</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItem(item.key, { quantity: Number(e.target.value) || 1 })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs font-semibold text-foreground">Condição Especial (R$)</Label>
+                          <CurrencyInput
+                            value={item.unit_price}
+                            onChange={(val) => updateItem(item.key, { unit_price: val })}
+                            placeholder="R$ 0,00"
+                          />
+                        </div>
+                      </div>
+
+                      {hasMinViolation ? (
+                        <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 text-xs font-medium">
+                          <AlertTriangle className="size-4 shrink-0" />
+                          <span>
+                            Atenção: O valor de <strong>{brl(item.unit_price)}</strong> está abaixo do piso mínimo permitido de <strong>{brl(item.min_price!)}</strong>.
+                          </span>
                         </div>
                       ) : null}
 
-                      <div className="flex items-center gap-2">
-                        <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Preço Tabela:</Label>
-                        <CurrencyInput
-                          value={item.original_price ?? (item.item_adjustment_mode !== "none" ? item.base_price : 0)}
-                          onChange={(val) => updateItem(item.key, { original_price: val || null })}
-                          placeholder="Ex: R$ 5,00"
-                          className="h-8 text-xs"
-                        />
+                      {hasMaxViolation ? (
+                        <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 text-xs font-medium">
+                          <AlertTriangle className="size-4 shrink-0" />
+                          <span>
+                            Atenção: O valor de <strong>{brl(item.unit_price)}</strong> ultrapassa o teto máximo permitido de <strong>{brl(item.max_price!)}</strong>.
+                          </span>
+                        </div>
+                      ) : null}
+
+                      <div className="grid gap-2 sm:col-span-2 bg-secondary/20 p-3 rounded-lg border border-border">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                            <Sparkles className="size-3.5 text-primary" /> Ajuste Comercial no Item (Desconto / Acréscimo)
+                          </Label>
+                          {item.min_price || item.max_price ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              Limites: Mín {item.min_price ? brl(item.min_price) : "—"} · Máx {item.max_price ? brl(item.max_price) : "—"}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] gap-2 items-center pt-1">
+                          <Select
+                            value={item.item_adjustment_mode}
+                            onValueChange={(v) =>
+                              updateItem(item.key, { item_adjustment_mode: v as any })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sem ajuste no item</SelectItem>
+                              <SelectItem value="discount_percent">Desconto (%)</SelectItem>
+                              <SelectItem value="discount_fixed">Desconto (R$)</SelectItem>
+                              <SelectItem value="surcharge_percent">Acréscimo (%)</SelectItem>
+                              <SelectItem value="surcharge_fixed">Acréscimo (R$)</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {item.item_adjustment_mode !== "none" ? (
+                            <div className="flex items-center gap-2">
+                              {item.item_adjustment_mode.includes("fixed") ? (
+                                <CurrencyInput
+                                  value={item.item_adjustment_val || 0}
+                                  onChange={(val) =>
+                                    updateItem(item.key, { item_adjustment_val: val })
+                                  }
+                                  placeholder="Ex: R$ 1,50"
+                                  className="h-8 text-xs"
+                                />
+                              ) : (
+                                <div className="relative flex items-center flex-1">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step="0.1"
+                                    value={item.item_adjustment_val || ""}
+                                    onChange={(e) =>
+                                      updateItem(item.key, { item_adjustment_val: Number(e.target.value) || 0 })
+                                    }
+                                    placeholder="Ex: 10"
+                                    className="h-8 text-xs pr-7 text-right font-medium"
+                                  />
+                                  <span className="absolute right-2.5 text-xs text-muted-foreground font-semibold">%</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] text-muted-foreground whitespace-nowrap">Preço Tabela:</Label>
+                            <CurrencyInput
+                              value={item.original_price ?? (item.item_adjustment_mode !== "none" ? item.base_price : 0)}
+                              onChange={(val) => updateItem(item.key, { original_price: val || null })}
+                              placeholder="Ex: R$ 5,00"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             );

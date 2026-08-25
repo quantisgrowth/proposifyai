@@ -22,6 +22,19 @@ export type DocItem = {
   pricing_tier_notes?: string | null | undefined;
   is_included?: boolean;
   total_price: number;
+  // Tire B2B specifics snapshot
+  modelo?: string | null | undefined;
+  medida?: string | null | undefined;
+  marca?: string | null | undefined;
+  posicao?: string | null | undefined;
+  lonas_pr?: number | null | undefined;
+  profundidade_sulco_mm?: number | null | undefined;
+  indice_carga_velocidade?: string | null | undefined;
+  base_price_avista?: number | null | undefined;
+  forma_pagamento?: string | null | undefined;
+  condicao_escolhida?: string | null | undefined;
+  taxa_percentual?: number | null | undefined;
+  numero_parcelas?: number | null | undefined;
 };
 
 export type DocData = {
@@ -297,9 +310,57 @@ export function ProposalDocument({ data }: { data: DocData }) {
                 </tr>
               ) : (
                 data.items.map((item, index) => {
+                  const isTire = !!item.medida;
                   const isFree = item.unit_price === 0 || item.is_included;
                   const hasOriginal =
                     item.original_price && item.original_price > item.unit_price;
+
+                  if (isTire) {
+                    const priceAvista = Number(item.base_price_avista) || Number(item.unit_price) / (1 + (item.taxa_percentual || 0));
+                    const costPerMm = item.profundidade_sulco_mm ? priceAvista / Number(item.profundidade_sulco_mm) : 0;
+                    const installmentVal = Number(item.unit_price) / (item.numero_parcelas || 1);
+                    const paymentLabel = item.forma_pagamento === "PIX_AVISTA" ? "PIX à Vista" : item.forma_pagamento === "BOLETO_PRAZO" ? "Boleto a Prazo" : item.forma_pagamento === "CARTAO_CREDITO" ? "Cartão de Crédito" : item.forma_pagamento || "A Prazo";
+                    
+                    return (
+                      <tr key={index} className="hover:bg-slate-50/80 transition-colors">
+                        <td colSpan={4} className="p-5 pl-4 align-top">
+                          <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pb-3 border-b border-dashed border-slate-200">
+                            <div>
+                              <p className="text-base font-bold text-slate-900">
+                                🚗 Pneu {item.marca} {item.modelo} — {item.medida} ({item.posicao})
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-1.5 font-medium">
+                                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">{item.lonas_pr} PR</span>
+                                <span>•</span>
+                                <span>Sulco: <strong className="text-slate-800">{item.profundidade_sulco_mm} mm</strong></span>
+                                <span>•</span>
+                                <span>Índice: <strong className="text-slate-800">{item.indice_carga_velocidade}</strong></span>
+                                <span>•</span>
+                                <span>Qtd: <strong className="text-slate-800">{item.quantity} un</strong></span>
+                              </p>
+                            </div>
+                            <div className="text-left sm:text-right shrink-0">
+                              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Valor Final no Prazo</p>
+                              <p className="text-lg font-black text-slate-900">{brl(item.unit_price)} <span className="text-[11px] font-normal text-slate-500">/un</span></p>
+                              <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded mt-1.5 w-fit sm:ml-auto">
+                                Plano B2B: {item.numero_parcelas || 1}x de {brl(installmentVal)}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 grid gap-2.5 text-xs text-slate-700 sm:grid-cols-2">
+                            <p>
+                              <strong className="text-slate-900">Condição Comercial:</strong> {paymentLabel} - {item.condicao_escolhida || "PM30"} {item.taxa_percentual ? `(Taxa: ${(Number(item.taxa_percentual) * 100).toFixed(2)}%)` : ""}
+                            </p>
+                            <p className="text-slate-600 italic bg-slate-50 border border-slate-100 rounded-lg p-2.5 sm:col-span-2 leading-relaxed">
+                              <strong className="text-emerald-700 not-italic block font-bold mb-0.5">💡 Diferencial Competitivo (LB Tyres):</strong>
+                              Este pneu premium oferece carcaça reforçada de {item.lonas_pr} PR com alta recapabilidade e sulco de {item.profundidade_sulco_mm} mm original, apresentando um custo-benefício de apenas {brl(costPerMm)} por milímetro de borracha utilizável (preço base à vista de {brl(priceAvista)}). Um excelente investimento para redução do custo por quilômetro (CPK) da sua frota.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
 
                   return (
                     <tr key={index} className="hover:bg-slate-50/80 transition-colors">

@@ -110,6 +110,84 @@ export const Route = createFileRoute("/api/v1/proposals")({
             }
           }
 
+          // Normalização para Pneus B2B (LB Tyres) caso venha no payload
+          if (body.tire_item) {
+            const tire = body.tire_item;
+            const fin = body.financial_rules || {};
+
+            const basePrice = Number(tire.base_price_avista) || 0;
+            const taxa = Number(fin.taxa_percentual) || 0;
+            const calculatedUnitPrice = Number((basePrice * (1 + taxa)).toFixed(2));
+            const numParcelas = Number(fin.numero_parcelas) || 1;
+
+            // Search or insert product in catalog
+            const tireProductName = `${tire.marca} ${tire.modelo} - ${tire.medida}`;
+            let productId = null;
+            
+            try {
+              const { data: existingProd } = await supabaseAdmin
+                .from("products")
+                .select("id")
+                .eq("company_id", company.id)
+                .eq("name", tireProductName)
+                .maybeSingle();
+
+              if (existingProd) {
+                productId = existingProd.id;
+              } else {
+                const { data: newProd } = await supabaseAdmin
+                  .from("products")
+                  .insert({
+                    company_id: company.id,
+                    name: tireProductName,
+                    description: `Pneu B2B - ${tire.marca} ${tire.modelo} ${tire.medida} (${tire.posicao})`,
+                    unit_price: calculatedUnitPrice,
+                    pricing_type: "one_time",
+                    modelo: tire.modelo || null,
+                    medida: tire.medida || null,
+                    marca: tire.marca || null,
+                    posicao: tire.posicao || null,
+                    lonas_pr: Number(tire.lonas_pr) || null,
+                    profundidade_sulco_mm: Number(tire.profundidade_sulco_mm) || null,
+                    indice_carga_velocidade: tire.indice_carga_velocidade || null,
+                    base_price_avista: basePrice,
+                    forma_pagamento: fin.forma_pagamento || null,
+                    condicao_escolhida: fin.condicao_escolhida || null,
+                    taxa_percentual: taxa,
+                    numero_parcelas: numParcelas,
+                  })
+                  .select("id")
+                  .single();
+                if (newProd) productId = newProd.id;
+              }
+            } catch (dbErr) {
+              console.error("[API Product Match/Insert Error]:", dbErr);
+            }
+
+            // Convert to itemsPayload format
+            itemsPayload = [{
+              product_id: productId,
+              title: tireProductName,
+              description: `Ficha Técnica: ${tire.lonas_pr || 16} PR | Sulco: ${tire.profundidade_sulco_mm || 15.0} mm | Índice: ${tire.indice_carga_velocidade || "—"}`,
+              quantity: Number(body.quantity) || 1,
+              unit_price: calculatedUnitPrice,
+              base_price_avista: basePrice,
+              forma_pagamento: fin.forma_pagamento || "PIX_AVISTA",
+              condicao_escolhida: fin.condicao_escolhida || "PM30",
+              taxa_percentual: taxa,
+              numero_parcelas: numParcelas,
+              modelo: tire.modelo || null,
+              medida: tire.medida || null,
+              marca: tire.marca || null,
+              posicao: tire.posicao || null,
+              lonas_pr: Number(tire.lonas_pr) || null,
+              profundidade_sulco_mm: Number(tire.profundidade_sulco_mm) || null,
+              indice_carga_velocidade: tire.indice_carga_velocidade || null,
+            }];
+
+            paymentTerms = `${fin.forma_pagamento || "PIX_AVISTA"} - ${fin.condicao_escolhida || "PM30"}`;
+          }
+
           if (!clientName) {
             const errorMsg = "Validation error: 'client.name' is required (direct or mapped)";
             const resBody = JSON.stringify({ error: errorMsg });
@@ -245,6 +323,7 @@ export const Route = createFileRoute("/api/v1/proposals")({
           if (itemsPayload.length > 0) {
             const itemsData = itemsPayload.map((item: any, idx: number) => ({
               proposal_id: proposal.id,
+              product_id: item.product_id || null,
               title: item.title ? String(item.title).trim() : "Item",
               description: item.description ? String(item.description).trim() : null,
               quantity: Number(item.quantity) || 1,
@@ -252,6 +331,19 @@ export const Route = createFileRoute("/api/v1/proposals")({
               total_price: (Number(item.quantity) || 1) * (Number(item.unit_price) || 0),
               position: idx,
               is_included: true,
+              // snapshot tire fields
+              modelo: item.modelo || null,
+              medida: item.medida || null,
+              marca: item.marca || null,
+              posicao: item.posicao || null,
+              lonas_pr: item.lonas_pr ? Number(item.lonas_pr) : null,
+              profundidade_sulco_mm: item.profundidade_sulco_mm ? Number(item.profundidade_sulco_mm) : null,
+              indice_carga_velocidade: item.indice_carga_velocidade || null,
+              base_price_avista: item.base_price_avista ? Number(item.base_price_avista) : null,
+              forma_pagamento: item.forma_pagamento || null,
+              condicao_escolhida: item.condicao_escolhida || null,
+              taxa_percentual: item.taxa_percentual ? Number(item.taxa_percentual) : null,
+              numero_parcelas: item.numero_parcelas ? Number(item.numero_parcelas) : null,
             }));
 
             const { error: itemsErr } = await supabaseAdmin

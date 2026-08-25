@@ -89,6 +89,19 @@ export type Product = {
   active: boolean;
   company_id?: string | null;
   created_at: string;
+  // Tire B2B specifics
+  modelo?: string | null;
+  medida?: string | null;
+  marca?: string | null;
+  posicao?: string | null;
+  lonas_pr?: number | null;
+  profundidade_sulco_mm?: number | null;
+  indice_carga_velocidade?: string | null;
+  base_price_avista?: number | null;
+  forma_pagamento?: string | null;
+  condicao_escolhida?: string | null;
+  taxa_percentual?: number | null;
+  numero_parcelas?: number | null;
 };
 
 export type Proposal = {
@@ -141,6 +154,19 @@ export type ProposalItem = {
   total_price: number;
   position: number;
   created_at: string;
+  // Tire B2B specifics Snapshot
+  modelo?: string | null;
+  medida?: string | null;
+  marca?: string | null;
+  posicao?: string | null;
+  lonas_pr?: number | null;
+  profundidade_sulco_mm?: number | null;
+  indice_carga_velocidade?: string | null;
+  base_price_avista?: number | null;
+  forma_pagamento?: string | null;
+  condicao_escolhida?: string | null;
+  taxa_percentual?: number | null;
+  numero_parcelas?: number | null;
 };
 
 export type ProposalWithClient = Proposal & { clients: Client | null; companies?: Company | null };

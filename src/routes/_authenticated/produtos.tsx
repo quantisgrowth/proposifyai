@@ -74,6 +74,18 @@ const emptyProduct = {
   company_id: "",
   pricing_tiers: [] as PricingTier[],
   pricing_tier_notes: "",
+  modelo: "",
+  medida: "",
+  marca: "",
+  posicao: "Direcional",
+  lonas_pr: 16,
+  profundidade_sulco_mm: 15.0,
+  indice_carga_velocidade: "",
+  base_price_avista: 0,
+  forma_pagamento: "PIX_AVISTA",
+  condicao_escolhida: "PM30",
+  taxa_percentual: 0,
+  numero_parcelas: 1,
 };
 
 function ProductsPage() {
@@ -123,6 +135,18 @@ function ProductsPage() {
       company_id: p.company_id ?? (activeCompanyId ?? ""),
       pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers : [],
       pricing_tier_notes: p.pricing_tier_notes ?? "",
+      modelo: p.modelo ?? "",
+      medida: p.medida ?? "",
+      marca: p.marca ?? "",
+      posicao: p.posicao ?? "Direcional",
+      lonas_pr: p.lonas_pr ? Number(p.lonas_pr) : 16,
+      profundidade_sulco_mm: p.profundidade_sulco_mm ? Number(p.profundidade_sulco_mm) : 15.0,
+      indice_carga_velocidade: p.indice_carga_velocidade ?? "",
+      base_price_avista: p.base_price_avista ? Number(p.base_price_avista) : 0,
+      forma_pagamento: p.forma_pagamento ?? "PIX_AVISTA",
+      condicao_escolhida: p.condicao_escolhida ?? "PM30",
+      taxa_percentual: p.taxa_percentual ? Number(p.taxa_percentual) : 0,
+      numero_parcelas: p.numero_parcelas ? Number(p.numero_parcelas) : 1,
     });
     setModalOpen(true);
   };
@@ -139,6 +163,18 @@ function ProductsPage() {
       company_id: p.company_id ?? (activeCompanyId ?? ""),
       pricing_tiers: Array.isArray(p.pricing_tiers) ? p.pricing_tiers.map(t => ({ ...t })) : [],
       pricing_tier_notes: p.pricing_tier_notes ?? "",
+      modelo: p.modelo ?? "",
+      medida: p.medida ?? "",
+      marca: p.marca ?? "",
+      posicao: p.posicao ?? "Direcional",
+      lonas_pr: p.lonas_pr ? Number(p.lonas_pr) : 16,
+      profundidade_sulco_mm: p.profundidade_sulco_mm ? Number(p.profundidade_sulco_mm) : 15.0,
+      indice_carga_velocidade: p.indice_carga_velocidade ?? "",
+      base_price_avista: p.base_price_avista ? Number(p.base_price_avista) : 0,
+      forma_pagamento: p.forma_pagamento ?? "PIX_AVISTA",
+      condicao_escolhida: p.condicao_escolhida ?? "PM30",
+      taxa_percentual: p.taxa_percentual ? Number(p.taxa_percentual) : 0,
+      numero_parcelas: p.numero_parcelas ? Number(p.numero_parcelas) : 1,
     });
     setModalOpen(true);
   };
@@ -165,10 +201,15 @@ function ProductsPage() {
     }));
   };
 
+  const currentCompany = companies?.find((c) => c.id === (editing ? form.company_id : activeCompanyFilter)) || company;
+  const isLBTyres = currentCompany?.name?.toLowerCase().includes("lb tyres") || false;
+
   const save = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe o nome do serviço");
       const targetCompanyId = form.company_id || activeCompanyId || (companies?.[0]?.id ?? null);
+      const activeComp = companies?.find((c) => c.id === targetCompanyId) || company;
+      const isLBTyresSave = activeComp?.name?.toLowerCase().includes("lb tyres") || false;
       
       const payload = {
         name: form.name.trim(),
@@ -180,6 +221,19 @@ function ProductsPage() {
         company_id: targetCompanyId,
         pricing_tiers: form.pricing_tiers.filter((t) => t.range.trim()),
         pricing_tier_notes: form.pricing_tier_notes?.trim() || null,
+        // Tire fields
+        modelo: isLBTyresSave ? form.modelo.trim() || null : null,
+        medida: isLBTyresSave ? form.medida.trim() || null : null,
+        marca: isLBTyresSave ? form.marca.trim() || null : null,
+        posicao: isLBTyresSave ? form.posicao : null,
+        lonas_pr: isLBTyresSave ? Number(form.lonas_pr) || null : null,
+        profundidade_sulco_mm: isLBTyresSave ? Number(form.profundidade_sulco_mm) || null : null,
+        indice_carga_velocidade: isLBTyresSave ? form.indice_carga_velocidade.trim() || null : null,
+        base_price_avista: isLBTyresSave ? Number(form.base_price_avista) || null : null,
+        forma_pagamento: isLBTyresSave ? form.forma_pagamento : null,
+        condicao_escolhida: isLBTyresSave ? form.condicao_escolhida.trim() || null : null,
+        taxa_percentual: isLBTyresSave ? Number(form.taxa_percentual) || 0 : null,
+        numero_parcelas: isLBTyresSave ? Number(form.numero_parcelas) || 1 : null,
       };
 
       if (editing) {
@@ -314,6 +368,35 @@ function ProductsPage() {
                 <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
                   {p.description || "Sem descrição detalhada."}
                 </p>
+                {p.medida && (
+                  <div className="mt-1.5 text-[11px] text-primary font-medium flex flex-wrap items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/10 w-fit">
+                    <span className="font-bold text-primary">{p.marca} {p.modelo}</span>
+                    <span className="text-muted-foreground/30">•</span>
+                    <span>{p.medida} ({p.posicao})</span>
+                    <span className="text-muted-foreground/30">•</span>
+                    <span>{p.lonas_pr} PR</span>
+                    <span className="text-muted-foreground/30">•</span>
+                    <span>Sulco: {p.profundidade_sulco_mm}mm</span>
+                    {p.base_price_avista && (
+                      <>
+                        <span className="text-muted-foreground/30">•</span>
+                        <span>Base: <strong>{brl(Number(p.base_price_avista))}</strong></span>
+                      </>
+                    )}
+                    {p.taxa_percentual ? (
+                      <>
+                        <span className="text-muted-foreground/30">•</span>
+                        <span>Taxa: <strong>{(Number(p.taxa_percentual) * 100).toFixed(2)}%</strong></span>
+                      </>
+                    ) : null}
+                    {p.profundidade_sulco_mm && p.base_price_avista && (
+                      <>
+                        <span className="text-muted-foreground/30">•</span>
+                        <span className="text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded font-bold">Custo/mm: {brl(Number(p.base_price_avista) / Number(p.profundidade_sulco_mm))}/mm</span>
+                      </>
+                    )}
+                  </div>
+                )}
                 {(p.min_price || p.max_price) && (
                   <p className="mt-1 text-[11px] text-muted-foreground/80 flex items-center gap-2">
                     {p.min_price ? <span>Mín: <strong className="text-foreground">{brl(Number(p.min_price))}</strong></span> : null}
@@ -502,6 +585,204 @@ function ProductsPage() {
                 </Select>
               </div>
             </div>
+
+            {isLBTyres && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-primary/10">
+                  <Label className="text-sm font-bold text-primary flex items-center gap-1.5">
+                    🚗 Especificações de Pneu & Regra B2B (LB Tyres)
+                  </Label>
+                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-semibold uppercase tracking-wider">
+                    Pneu Catálogo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Marca</Label>
+                    <Input
+                      value={form.marca}
+                      onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                      placeholder="Ex: XBRI"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Modelo</Label>
+                    <Input
+                      value={form.modelo}
+                      onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                      placeholder="Ex: CAR-603"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Medida</Label>
+                    <Input
+                      value={form.medida}
+                      onChange={(e) => setForm({ ...form, medida: e.target.value })}
+                      placeholder="Ex: 295/80R22.5"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Posição</Label>
+                    <Select
+                      value={form.posicao}
+                      onValueChange={(val) => setForm({ ...form, posicao: val })}
+                    >
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Direcional">Direcional</SelectItem>
+                        <SelectItem value="Tração">Tração</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Lonas (PR)</Label>
+                    <Input
+                      type="number"
+                      value={form.lonas_pr || ""}
+                      onChange={(e) => setForm({ ...form, lonas_pr: parseInt(e.target.value) || 0 })}
+                      placeholder="Ex: 18"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Prof. Sulco (mm)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.profundidade_sulco_mm || ""}
+                      onChange={(e) => setForm({ ...form, profundidade_sulco_mm: parseFloat(e.target.value) || 0 })}
+                      placeholder="Ex: 22.0"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs text-muted-foreground">Índice Carga/Vel.</Label>
+                    <Input
+                      value={form.indice_carga_velocidade}
+                      onChange={(e) => setForm({ ...form, indice_carga_velocidade: e.target.value })}
+                      placeholder="Ex: 152/149M"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold text-primary">Preço Base à Vista</Label>
+                    <CurrencyInput
+                      value={form.base_price_avista}
+                      onChange={(val) => {
+                        const calculated = Number((val * (1 + form.taxa_percentual)).toFixed(2));
+                        setForm({
+                          ...form,
+                          base_price_avista: val,
+                          unit_price: calculated,
+                          min_price: val,
+                          max_price: Number((val * 1.5).toFixed(2)),
+                        });
+                      }}
+                      placeholder="R$ 1.500,00"
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-primary/10 pt-3 space-y-3">
+                  <span className="text-[11px] font-bold text-primary block uppercase tracking-wider">
+                    Regra Financeira Comercial (Taxas e Prazos)
+                  </span>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
+                      <Select
+                        value={form.forma_pagamento}
+                        onValueChange={(val) => setForm({ ...form, forma_pagamento: val })}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PIX_AVISTA">PIX à Vista</SelectItem>
+                          <SelectItem value="BOLETO_PRAZO">Boleto a Prazo</SelectItem>
+                          <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Condição/Prazo</Label>
+                      <Input
+                        value={form.condicao_escolhida}
+                        onChange={(e) => setForm({ ...form, condicao_escolhida: e.target.value })}
+                        placeholder="Ex: PM60"
+                        className="h-9 text-xs"
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Taxa Percentual (%)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.taxa_percentual ? Number((form.taxa_percentual * 100).toFixed(2)) : ""}
+                        onChange={(e) => {
+                          const rate = parseFloat(e.target.value) / 100 || 0;
+                          const calculated = Number((form.base_price_avista * (1 + rate)).toFixed(2));
+                          setForm({
+                            ...form,
+                            taxa_percentual: rate,
+                            unit_price: calculated,
+                          });
+                        }}
+                        placeholder="Ex: 4.00"
+                        className="h-9 text-xs"
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Nº Parcelas</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={form.numero_parcelas || ""}
+                        onChange={(e) => setForm({ ...form, numero_parcelas: parseInt(e.target.value) || 1 })}
+                        placeholder="Ex: 3"
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {form.base_price_avista > 0 && (
+                    <div className="bg-primary/10 rounded-lg p-3 text-xs text-primary font-medium space-y-2 border border-primary/20">
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <span>Valor Final no Prazo (Praticado): <strong>{brl(form.base_price_avista * (1 + form.taxa_percentual))}</strong></span>
+                        <span>Plano: <strong>{form.numero_parcelas}x de {brl((form.base_price_avista * (1 + form.taxa_percentual)) / form.numero_parcelas)}</strong></span>
+                      </div>
+                      {form.profundidade_sulco_mm > 0 && (
+                        <div className="text-[10px] text-primary/80 border-t border-primary/10 pt-1.5 flex justify-between">
+                          <span>Eficiência do Sulco: <strong>{brl(form.base_price_avista / form.profundidade_sulco_mm)} por mm</strong> de borracha</span>
+                          <span className="italic">Proposta gerada no formato Executivo</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Construtor de Tabela de Faixas por Volume (Performance) */}
             <div className="rounded-lg border border-border bg-secondary/10 p-4 space-y-3">

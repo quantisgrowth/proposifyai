@@ -28,6 +28,34 @@ function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error("Informe seu e-mail para receber as instruções.");
+      return;
+    }
+
+    setResetBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+        redirectTo: `${window.location.origin}/admin-login`,
+      });
+      if (error) throw error;
+      toast.success("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
+      setForgotPasswordOpen(false);
+      setResetEmail("");
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error ? err.message : "Erro ao enviar e-mail de recuperação.";
+      toast.error(errorMsg);
+    } finally {
+      setResetBusy(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -167,6 +195,16 @@ function AdminLoginPage() {
           >
             {busy ? "VALIDANDO CREDENCIAIS..." : "ENTRAR NO PAINEL ADMIN"}
           </Button>
+
+          <div className="pt-2 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setForgotPasswordOpen(true)}
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary hover:underline bg-transparent border-0 cursor-pointer"
+            >
+              Esqueci a senha
+            </button>
+          </div>
         </form>
 
         <div className="mt-8 border-t border-white/10 pt-4 text-center">
@@ -178,6 +216,66 @@ function AdminLoginPage() {
           </Link>
         </div>
       </div>
+
+      {/* Forgot Password Modal Dialog */}
+      {forgotPasswordOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-[#07090E]/80 backdrop-blur-sm"
+            onClick={() => setForgotPasswordOpen(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-white/10 bg-[#0E1118]/90 p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Lock className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-white">Recuperação de Senha</h3>
+                <p className="text-xs text-muted-foreground">
+                  Enviaremos um link para você redefinir sua senha de acesso.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="reset-email" className="text-xs font-medium text-muted-foreground">
+                  Seu e-mail cadastrado:
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="nome@empresa.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-primary focus:ring-1 focus:ring-primary"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setForgotPasswordOpen(false)}
+                  className="rounded-lg text-xs border-white/10 bg-transparent text-white hover:bg-white/5"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={resetBusy}
+                  className="rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/95"
+                >
+                  {resetBusy ? "Enviando..." : "Enviar instruções"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

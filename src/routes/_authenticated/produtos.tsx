@@ -101,16 +101,7 @@ function ProductsPage() {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
 
-  // Se for admin, permite selecionar qualquer empresa ou "all"
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    return activeCompanyId ?? "all";
-  });
-
-  const activeCompanyFilter = isAdmin
-    ? selectedCompanyId === "all"
-      ? null
-      : selectedCompanyId
-    : activeCompanyId || company?.id || null;
+  const activeCompanyFilter = activeCompanyId || company?.id || null;
 
   const { data: products, isLoading } = useQuery(productsQuery(activeCompanyFilter));
 
@@ -123,10 +114,7 @@ function ProductsPage() {
     setEditing(null);
     setForm({
       ...emptyProduct,
-      company_id:
-        selectedCompanyId !== "all"
-          ? selectedCompanyId
-          : activeCompanyId ?? (companies?.[0]?.id ?? ""),
+      company_id: activeCompanyFilter ?? "",
     });
     setModalOpen(true);
   };
@@ -567,26 +555,7 @@ function ProductsPage() {
           />
         </div>
 
-        {isAdmin ? (
-          <div className="flex items-center gap-2.5">
-            <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-              Filtrar por Empresa:
-            </Label>
-            <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-              <SelectTrigger className="w-[200px] h-10 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Empresas</SelectItem>
-                {(companies ?? []).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
+
       </div>
 
       {/* Lista de Produtos */}

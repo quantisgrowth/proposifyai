@@ -141,17 +141,7 @@ function ProposalsPage() {
   const { data: profiles } = useQuery(profilesQuery);
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  // Filter state for company select (admins only)
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    if (isAdmin) return "all";
-    return activeCompanyId ?? "";
-  });
-
-  const activeCompanyFilter = isAdmin
-    ? selectedCompanyId === "all"
-      ? null
-      : selectedCompanyId
-    : activeCompanyId || company?.id || null;
+  const activeCompanyFilter = activeCompanyId || company?.id || null;
 
   const activeCompanySettings = useMemo(() => {
     return (companies ?? []).find((c) => c.id === activeCompanyFilter) || company;
@@ -418,7 +408,7 @@ function ProposalsPage() {
       const nextPos = dbColumns ? dbColumns.length : 0;
       let newSlug = `${col.slug}-copy-${Math.random().toString(36).slice(2, 5)}`;
       const { error } = await supabase.from("kanban_columns").insert({
-        company_id: selectedCompanyId === "all" ? col.company_id : selectedCompanyId,
+        company_id: activeCompanyFilter || col.company_id,
         name: `${col.name} (Cópia)`,
         slug: newSlug,
         color: col.color,
@@ -473,9 +463,7 @@ function ProposalsPage() {
     setSavingColumn(true);
     try {
       const nextPos = dbColumns ? dbColumns.length : 0;
-      const targetCompanyId = selectedCompanyId === "all"
-        ? (companies?.[0]?.id ?? null)
-        : selectedCompanyId;
+      const targetCompanyId = activeCompanyFilter;
       
       if (!targetCompanyId) {
         toast.error("Por favor, selecione uma empresa para adicionar uma etapa.");
@@ -848,27 +836,6 @@ function ProposalsPage() {
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          {/* Admin Company Selector filter */}
-          {isAdmin && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap hidden md:inline">
-                Filtrar por Empresa:
-              </Label>
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                <SelectTrigger className="w-[180px] h-10 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Empresas</SelectItem>
-                  {(companies ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {viewMode === "list" && (
             <div className="flex flex-wrap gap-1">
@@ -993,7 +960,7 @@ function ProposalsPage() {
                 <div className="flex-1 overflow-y-auto space-y-3 min-h-[350px] max-h-[600px] pr-1">
                   {columnProposals.map((p) => {
                     const isMoving = changeStatus.isPending && changeStatus.variables?.id === p.id;
-                    const showCompanyBadge = isAdmin && selectedCompanyId === "all" && p.companies;
+                    const showCompanyBadge = isAdmin && !activeCompanyFilter && p.companies;
                     
                     return (
                       <div
@@ -1161,7 +1128,7 @@ function ProposalsPage() {
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-[0.12em] text-muted-foreground bg-muted/40">
                 <th className="px-4 py-3.5 font-normal">ID</th>
                 <th className="px-4 py-3.5 font-normal">Cliente</th>
-                {isAdmin && selectedCompanyId === "all" && (
+                {isAdmin && !activeCompanyFilter && (
                   <th className="px-4 py-3.5 font-normal">Empresa Emissora</th>
                 )}
                 <th className="px-4 py-3.5 text-right font-normal">Valor líquido</th>
@@ -1174,7 +1141,7 @@ function ProposalsPage() {
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin && selectedCompanyId === "all" ? 8 : 7} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={isAdmin && !activeCompanyFilter ? 8 : 7} className="px-4 py-10 text-center text-muted-foreground">
                     Nenhuma proposta encontrada.
                   </td>
                 </tr>
@@ -1183,7 +1150,7 @@ function ProposalsPage() {
                   <tr key={p.id} className="border-b border-border/70 last:border-0 hover:bg-secondary/40">
                     <td className="px-4 py-3 font-medium tabular-nums">{p.proposal_code}</td>
                     <td className="px-4 py-3">{p.clients?.name ?? "—"}</td>
-                    {isAdmin && selectedCompanyId === "all" && (
+                    {isAdmin && !activeCompanyFilter && (
                       <td className="px-4 py-3 text-muted-foreground">
                         {p.companies?.name || "—"}
                       </td>

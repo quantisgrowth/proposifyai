@@ -80,17 +80,7 @@ function ClientsPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Company filtering for admins
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(() => {
-    if (isAdmin) return "all";
-    return activeCompanyId ?? "";
-  });
-
-  const activeCompanyFilter = isAdmin
-    ? selectedCompanyId === "all"
-      ? null
-      : selectedCompanyId
-    : activeCompanyId || company?.id || null;
+  const activeCompanyFilter = activeCompanyId || company?.id || null;
 
   const { data: clients, isLoading } = useQuery(clientsQuery(activeCompanyFilter));
 
@@ -104,10 +94,7 @@ function ClientsPage() {
     setEditingClient(null);
     setForm({
       ...emptyForm,
-      company_id:
-        selectedCompanyId !== "all"
-          ? selectedCompanyId
-          : activeCompanyId ?? (companies?.[0]?.id ?? ""),
+      company_id: activeCompanyFilter ?? "",
     });
     setModalOpen(true);
   };
@@ -294,28 +281,6 @@ function ClientsPage() {
         </div>
 
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          {/* Admin Company Selector */}
-          {isAdmin ? (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-muted-foreground whitespace-nowrap hidden md:inline">
-                Filtrar por Empresa:
-              </Label>
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                <SelectTrigger className="w-[180px] h-10 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as Empresas</SelectItem>
-                  {(companies ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
           {/* List/Grid View Mode Toggle */}
           <ToggleGroup
             type="single"

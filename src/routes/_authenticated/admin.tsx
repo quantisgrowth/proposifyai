@@ -54,6 +54,7 @@ import {
   type Profile,
   type UserRole,
 } from "@/lib/proposals";
+import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({

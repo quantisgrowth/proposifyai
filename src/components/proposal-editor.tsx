@@ -140,7 +140,8 @@ interface ProposalEditorProps {
 export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: ProposalEditorProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { profile, company: userCompany, isAdmin, activeCompanyId: authActiveCompanyId } = useAuth();
+  const { profile, company: userCompany, isAdmin, isGestor, activeCompanyId: authActiveCompanyId } = useAuth();
+  const isGestorOrAdmin = isAdmin || isGestor;
   const { data: companies } = useQuery(companiesQuery);
   const isMobile = useIsMobile();
 
@@ -715,7 +716,7 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
           ) : null}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-border">
-            <div className="grid gap-1.5">
+            <div className={`grid gap-1.5 ${!isGestorOrAdmin ? "sm:col-span-2" : ""}`}>
               <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <Tag className="size-3 text-primary" /> Campanha Especial
               </Label>
@@ -725,16 +726,18 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
                 placeholder="Ex: Condições Exclusivas - Feira 2026"
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Layers className="size-3 text-primary" /> Solução Contratada
-              </Label>
-              <Input
-                value={solutionName}
-                onChange={(e) => setSolutionName(e.target.value)}
-                placeholder="Ex: Frotlog - Plataforma SaaS de Gestão..."
-              />
-            </div>
+            {isGestorOrAdmin && (
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Layers className="size-3 text-primary" /> Solução Contratada
+                </Label>
+                <Input
+                  value={solutionName}
+                  onChange={(e) => setSolutionName(e.target.value)}
+                  placeholder="Ex: Frotlog - Plataforma SaaS de Gestão..."
+                />
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1185,56 +1188,58 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       </section>
 
       {/* PASSO 4: TEXTOS DA PROPOSTA */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-            4
-          </span>
-          <h2 className="text-lg font-semibold">Textos da Proposta</h2>
-        </div>
-
-        <div className="grid gap-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor</Label>
-            <Textarea
-              rows={3}
-              value={objectiveText}
-              onChange={(e) => setObjectiveText(e.target.value)}
-              placeholder="Ex: A presente proposta tem como objetivo apresentar as condições comerciais..."
-            />
+      {isGestorOrAdmin && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+              4
+            </span>
+            <h2 className="text-lg font-semibold">Textos da Proposta</h2>
           </div>
 
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Funcionalidades e Escopo (Uma por linha no formato: Título: Descrição)</Label>
-            <Textarea
-              rows={4}
-              value={scopeText}
-              onChange={(e) => setScopeText(e.target.value)}
-              placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
-            />
-          </div>
+          <div className="grid gap-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor</Label>
+              <Textarea
+                rows={3}
+                value={objectiveText}
+                onChange={(e) => setObjectiveText(e.target.value)}
+                placeholder="Ex: A presente proposta tem como objetivo apresentar as condições comerciais..."
+              />
+            </div>
 
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Política de Fidelidade</Label>
-            <Textarea
-              rows={2}
-              value={fidelityPolicy}
-              onChange={(e) => setFidelityPolicy(e.target.value)}
-              placeholder="Ex: A nossa única fidelidade é a sua satisfação..."
-            />
-          </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label className="text-xs text-muted-foreground">Funcionalidades e Escopo (Uma por linha no formato: Título: Descrição)</Label>
+              <Textarea
+                rows={4}
+                value={scopeText}
+                onChange={(e) => setScopeText(e.target.value)}
+                placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
+              />
+            </div>
 
-          <div className="grid gap-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Próximos Passos (Um por linha)</Label>
-            <Textarea
-              rows={3}
-              value={nextStepsText}
-              onChange={(e) => setNextStepsText(e.target.value)}
-              placeholder="Ex: 1. Validação e aceite...\n2. Reunião de alinhamento..."
-            />
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label className="text-xs text-muted-foreground">Política de Fidelidade</Label>
+              <Textarea
+                rows={2}
+                value={fidelityPolicy}
+                onChange={(e) => setFidelityPolicy(e.target.value)}
+                placeholder="Ex: A nossa única fidelidade é a sua satisfação..."
+              />
+            </div>
+
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label className="text-xs text-muted-foreground">Próximos Passos (Um por linha)</Label>
+              <Textarea
+                rows={3}
+                value={nextStepsText}
+                onChange={(e) => setNextStepsText(e.target.value)}
+                placeholder="Ex: 1. Validação e aceite...\n2. Reunião de alinhamento..."
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* BOTÕES DE AÇÃO */}
       <div className="flex flex-wrap gap-3 border-t border-border pt-6">

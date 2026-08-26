@@ -27,6 +27,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -1328,6 +1336,406 @@ function CompaniesTab() {
    PÁGINA PRINCIPAL ADMIN
    ========================================================================= */
 
+
+/* =========================================================================
+   ABA DE CONFIGURAÇÃO DA EMPRESA ATIVA (PARA GESTORES)
+   ========================================================================= */
+
+function ActiveCompanyTab() {
+  const qc = useQueryClient();
+  const { company, refreshProfile } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    tagline: "",
+    email: "",
+    phone: "",
+    document: "",
+    logo_url: "",
+    brand_color: "#0f172a",
+    footer_text: "",
+    solution_name: "",
+    objective_text: "",
+    scope_text: "",
+    fidelity_policy: "",
+    next_steps_text: "",
+    default_validity_days: 15,
+    default_payment_terms: "Pix",
+    smtp_host: "",
+    smtp_port: 587,
+    smtp_user: "",
+    smtp_pass: "",
+    smtp_from: "",
+    smtp_from_name: "",
+  });
+
+  useEffect(() => {
+    if (company) {
+      setForm({
+        name: company.name || "",
+        tagline: company.tagline || "",
+        email: company.email || "",
+        phone: company.phone || "",
+        document: company.document || "",
+        logo_url: company.logo_url || "",
+        brand_color: company.brand_color || "#0f172a",
+        footer_text: company.footer_text || "",
+        solution_name: company.solution_name || "",
+        objective_text: company.objective_text || "",
+        scope_text: company.scope_text || "",
+        fidelity_policy: company.fidelity_policy || "",
+        next_steps_text: company.next_steps_text || "",
+        default_validity_days: company.default_validity_days || 15,
+        default_payment_terms: company.default_payment_terms || "Pix",
+        smtp_host: company.smtp_host || "",
+        smtp_port: company.smtp_port || 587,
+        smtp_user: company.smtp_user || "",
+        smtp_pass: company.smtp_pass || "",
+        smtp_from: company.smtp_from || "",
+        smtp_from_name: company.smtp_from_name || "",
+      });
+    }
+  }, [company]);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, logo_url: reader.result as string }));
+        toast.success("Logo carregada com sucesso!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company) return;
+    if (!form.name.trim()) {
+      toast.error("Informe a Razão Social da empresa.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          name: form.name.trim(),
+          tagline: form.tagline.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          document: form.document.trim(),
+          logo_url: form.logo_url.trim() || null,
+          brand_color: form.brand_color.trim() || "#0f172a",
+          footer_text: form.footer_text.trim() || null,
+          solution_name: form.solution_name.trim() || null,
+          objective_text: form.objective_text.trim() || null,
+          scope_text: form.scope_text.trim() || null,
+          fidelity_policy: form.fidelity_policy.trim() || null,
+          next_steps_text: form.next_steps_text.trim() || null,
+          default_validity_days: Number(form.default_validity_days) || 15,
+          default_payment_terms: form.default_payment_terms.trim(),
+          smtp_host: form.smtp_host.trim() || null,
+          smtp_port: form.smtp_port ? Number(form.smtp_port) : null,
+          smtp_user: form.smtp_user.trim() || null,
+          smtp_pass: form.smtp_pass || null,
+          smtp_from: form.smtp_from.trim() || null,
+          smtp_from_name: form.smtp_from_name.trim() || null,
+        })
+        .eq("id", company.id);
+
+      if (error) throw error;
+
+      toast.success("Configurações da empresa atualizadas!");
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      await refreshProfile();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao salvar dados da empresa.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Building2 className="size-4 text-primary" />
+            Dados da Empresa
+          </CardTitle>
+          <CardDescription>
+            Informações básicas de cadastro e personalização de marca.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Razão Social / Nome</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ex: LB Tyres Ltda"
+                required
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Slogan / Tagline</Label>
+              <Input
+                value={form.tagline}
+                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                placeholder="Ex: Tecnologia em Carga e Pneus"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">CNPJ / CPF</Label>
+              <Input
+                value={form.document}
+                onChange={(e) => setForm({ ...form, document: formatDocument(e.target.value) })}
+                placeholder="00.000.000/0001-00"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">E-mail de Contato</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="comercial@empresa.com"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Telefone</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="(11) 4000-2200"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-border/40">
+            <div className="grid gap-1.5 col-span-2">
+              <Label className="text-xs font-semibold">Logotipo da Empresa</Label>
+              <div className="flex items-center gap-3">
+                {form.logo_url && (
+                  <div className="size-12 rounded border border-border bg-white p-1 flex items-center justify-center shrink-0">
+                    <img src={form.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="cursor-pointer text-xs h-9"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Cor da Marca</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="color"
+                  value={form.brand_color}
+                  onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                  className="w-12 h-9 p-0.5 border border-input cursor-pointer"
+                />
+                <Input
+                  value={form.brand_color}
+                  onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                  className="font-mono text-xs uppercase"
+                  maxLength={7}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <FileText className="size-4 text-primary" />
+            Proposta Base (Template Padrão)
+          </CardTitle>
+          <CardDescription>
+            Defina os textos padrão que serão sugeridos para novas propostas comerciais.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Nome da Solução Comercial</Label>
+            <Input
+              value={form.solution_name}
+              onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
+              placeholder="Ex: Frotlog - Plataforma SaaS de Gestão de Frotas"
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Objetivo e Proposta de Valor</Label>
+            <Textarea
+              rows={3}
+              value={form.objective_text}
+              onChange={(e) => setForm({ ...form, objective_text: e.target.value })}
+              placeholder="Descreva o propósito principal da sua solução..."
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Funcionalidades e Escopo (Uma por linha: Título: Descrição)</Label>
+            <Textarea
+              rows={4}
+              value={form.scope_text}
+              onChange={(e) => setForm({ ...form, scope_text: e.target.value })}
+              placeholder="Ex: Módulo Financeiro: Gestão de contas..."
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Política de Fidelidade</Label>
+            <Textarea
+              rows={2}
+              value={form.fidelity_policy}
+              onChange={(e) => setForm({ ...form, fidelity_policy: e.target.value })}
+              placeholder="Descreva as condições de permanência ou rescisão..."
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Próximos Passos (Um por linha)</Label>
+            <Textarea
+              rows={4}
+              value={form.next_steps_text}
+              onChange={(e) => setForm({ ...form, next_steps_text: e.target.value })}
+              placeholder="Ex: 1. Aceite digital...\n2. Configuração de conta..."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <SlidersHorizontal className="size-4 text-primary" />
+            Preferências e Envio (SMTP)
+          </CardTitle>
+          <CardDescription>
+            Configure o servidor SMTP de envio de e-mails para propostas assinadas e rodapés oficiais.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Validade Padrão das Propostas (dias)</Label>
+              <Input
+                type="number"
+                value={form.default_validity_days}
+                onChange={(e) => setForm({ ...form, default_validity_days: parseInt(e.target.value) || 15 })}
+                placeholder="Ex: 15"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Forma de Pagamento Padrão</Label>
+              <Input
+                value={form.default_payment_terms}
+                onChange={(e) => setForm({ ...form, default_payment_terms: e.target.value })}
+                placeholder="Ex: Pix ou Boleto Bancário"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="text-xs font-semibold">Texto do Rodapé do PDF</Label>
+            <Input
+              value={form.footer_text}
+              onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
+              placeholder="Ex: © 2026 Minha Empresa - CNPJ 00.000.000/0001-00"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-border/40 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid gap-1.5 col-span-2">
+              <Label className="text-xs font-semibold">Servidor SMTP Host</Label>
+              <Input
+                value={form.smtp_host}
+                onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
+                placeholder="smtp.zoho.com"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Porta SMTP</Label>
+              <Input
+                type="number"
+                value={form.smtp_port}
+                onChange={(e) => setForm({ ...form, smtp_port: parseInt(e.target.value) || 587 })}
+                placeholder="587"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Usuário SMTP</Label>
+              <Input
+                value={form.smtp_user}
+                onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
+                placeholder="usuario@empresa.com"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Senha SMTP</Label>
+              <Input
+                type="password"
+                value={form.smtp_pass}
+                onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
+                placeholder="••••••••••••"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">E-mail Remetente</Label>
+              <Input
+                type="email"
+                value={form.smtp_from}
+                onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
+                placeholder="envios@empresa.com"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Nome do Remetente</Label>
+              <Input
+                value={form.smtp_from_name}
+                onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
+                placeholder="Ex: Comercial LB Tyres"
+              />
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="border-t border-border/40 pt-4 flex justify-end">
+          <Button type="submit" disabled={busy} className="font-semibold px-6">
+            {busy ? "Salvando..." : "Salvar Configurações"}
+          </Button>
+        </CardFooter>
+      </Card>
+    </form>
+  );
+}
+
+/* =========================================================================
+   PÁGINA PRINCIPAL ADMIN
+   ========================================================================= */
+
 function AdminPage() {
   const { profile, isAdmin, isGestor } = useAuth();
   const navigate = useNavigate();
@@ -1354,16 +1762,31 @@ function AdminPage() {
         <div className="flex items-center justify-between pb-4 border-b border-border">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Minha Equipe
+              Painel de Gestão da Empresa
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Gerencie os colaboradores da sua empresa e convide novos membros.
+              Gerencie colaboradores e personalize os modelos de propostas da sua empresa.
             </p>
           </div>
         </div>
-        <div className="mt-6">
-          <CollaboratorsTab />
-        </div>
+
+        <Tabs defaultValue="colaboradores" className="mt-6">
+          <TabsList className="grid grid-cols-2 max-w-xs">
+            <TabsTrigger value="colaboradores" className="gap-2 text-xs">
+              <Users className="size-4" /> Minha Equipe
+            </TabsTrigger>
+            <TabsTrigger value="empresa" className="gap-2 text-xs">
+              <Building2 className="size-4" /> Dados da Empresa
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="colaboradores" className="mt-6">
+            <CollaboratorsTab />
+          </TabsContent>
+          <TabsContent value="empresa" className="mt-6">
+            <ActiveCompanyTab />
+          </TabsContent>
+        </Tabs>
       </AppShell>
     );
   }

@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Building2,
@@ -1330,6 +1330,23 @@ function CompaniesTab() {
 
 function AdminPage() {
   const { profile, isAdmin, isGestor } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (profile && !isAdmin && !isGestor) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [profile, isAdmin, isGestor, navigate]);
+
+  if (!isAdmin && !isGestor) {
+    return (
+      <AppShell>
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-3">
+          <p className="text-sm text-muted-foreground">Acesso restrito para administradores e gestores.</p>
+        </div>
+      </AppShell>
+    );
+  }
   
   if (isGestor) {
     return (

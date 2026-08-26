@@ -7,6 +7,7 @@ type AuthContextType = {
   profile: Profile | null;
   company: Company | null;
   isAdmin: boolean;
+  isGestor: boolean;
   loading: boolean;
   refreshProfile: () => Promise<void>;
   activeCompanyId: string | null;
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   company: null,
   isAdmin: false,
+  isGestor: false,
   loading: true,
   refreshProfile: async () => {},
   activeCompanyId: null,
@@ -153,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         company,
         isAdmin: profile?.role === "admin",
+        isGestor: profile?.role === "gestor",
         loading,
         refreshProfile,
         activeCompanyId,

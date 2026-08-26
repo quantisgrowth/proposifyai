@@ -19,6 +19,7 @@ import {
   Upload,
   Download,
   ShieldAlert,
+  ChevronRight,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -42,9 +43,10 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { supabase } from "@/integrations/supabase/client";
-import { clientsQuery, companiesQuery, type Client } from "@/lib/proposals";
-import { shortDate, formatDocument } from "@/lib/format";
+import { clientsQuery, companiesQuery, profilesQuery, proposalsQuery, type Client } from "@/lib/proposals";
+import { shortDate, formatDocument, brl } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({
@@ -92,6 +94,32 @@ function ClientsPage() {
   const [importPreview, setImportPreview] = useState<any[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+
+  // Load SaaS Platform data if admin
+  const { data: allProfiles } = useQuery(profilesQuery);
+  const { data: allProposals } = useQuery(proposalsQuery(null));
+
+  const [selectedSaaSCompany, setSelectedSaaSCompany] = useState<any | null>(null);
+  const [saasDrawerOpen, setSaasDrawerOpen] = useState(false);
+
+  const handleOpenCompanyDrawer = (c: any) => {
+    setSelectedSaaSCompany(c);
+    setSaasDrawerOpen(true);
+  };
+
+  const saasCompanyDetails = useMemo(() => {
+    if (!selectedSaaSCompany) return null;
+    const collabs = (allProfiles ?? []).filter((p) => p.company_id === selectedSaaSCompany.id);
+    const props = (allProposals ?? []).filter((p) => p.company_id === selectedSaaSCompany.id);
+    const totalVal = props.reduce((sum, p) => sum + Number(p.net_amount || 0), 0);
+    const wonVal = props.filter((p) => p.status === "accepted").reduce((sum, p) => sum + Number(p.net_amount || 0), 0);
+    return {
+      collabs,
+      props,
+      totalVal,
+      wonVal,
+    };
+  }, [selectedSaaSCompany, allProfiles, allProposals]);
 
   // Modal and form states
   const [modalOpen, setModalOpen] = useState(false);
@@ -431,6 +459,153 @@ function ClientsPage() {
 
   const cleanCnpjLength = form.document.replace(/\D/g, "").length;
   const isCnpjInput = cleanCnpjLength === 14;
+
+  if (isAdmin) {
+    return (
+      <AppShell>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Empresas Assinantes</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Acompanhe as empresas cadastradas que utilizam o motor de propostas do Proposify AI.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 border border-border bg-card rounded-xl shadow-sm overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-border text-[11px] uppercase tracking-[0.12em] text-muted-foreground bg-muted/40 font-semibold">
+                <th className="px-4 py-3.5 font-normal">Nome</th>
+                <th className="px-4 py-3.5 font-normal">CNPJ</th>
+                <th className="px-4 py-3.5 font-normal">E-mail</th>
+                <th className="px-4 py-3.5 font-normal">Telefone</th>
+                <th className="px-4 py-3.5 text-center font-normal">Colaboradores</th>
+                <th className="px-4 py-3.5 text-right font-normal">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(companies ?? []).map((c) => {
+                const collabsCount = (allProfiles ?? []).filter((p) => p.company_id === c.id).length;
+                return (
+                  <tr
+                    key={c.id}
+                    onClick={() => handleOpenCompanyDrawer(c)}
+                    className="border-b border-border/70 last:border-0 hover:bg-secondary/40 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 font-semibold text-foreground">{c.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{c.document || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{c.email || "—"}</td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{c.phone || "—"}</td>
+                    <td className="px-4 py-3 text-center font-bold text-primary tabular-nums">{collabsCount}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button size="sm" variant="ghost" className="text-xs gap-1 font-semibold text-primary">
+                        Ver Detalhes <ChevronRight className="size-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {(companies ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    Nenhuma empresa cadastrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* DRAWER LATERAL DE DETALHES DA EMPRESA */}
+        <Sheet open={saasDrawerOpen} onOpenChange={setSaasDrawerOpen}>
+          <SheetContent className="sm:max-w-xl overflow-y-auto">
+            <SheetHeader className="pb-4 border-b border-border">
+              <SheetTitle className="text-xl font-bold flex items-center gap-2">
+                <Building2 className="size-5 text-primary" /> {selectedSaaSCompany?.name}
+              </SheetTitle>
+              <SheetDescription className="text-xs">
+                {selectedSaaSCompany?.tagline || "Configurações corporativas e equipe vinculada."}
+              </SheetDescription>
+            </SheetHeader>
+
+            {saasCompanyDetails && (
+              <div className="space-y-6 py-4">
+                {/* Indicadores Rápidos da Empresa */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3.5 bg-secondary/10 border border-border rounded-xl">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Total em Propostas
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-foreground tabular-nums">
+                      {brl(saasCompanyDetails.totalVal)}
+                    </p>
+                  </div>
+                  <div className="p-3.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                      Receita Ganha
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-emerald-600 tabular-nums">
+                      {brl(saasCompanyDetails.wonVal)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Colaboradores da Empresa */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/40 pb-1">
+                    Equipe da Empresa ({saasCompanyDetails.collabs.length})
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {saasCompanyDetails.collabs.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 bg-background border border-border rounded-lg text-xs">
+                        <div>
+                          <p className="font-semibold text-foreground">{p.full_name || "Sem Nome"}</p>
+                          <p className="text-[10px] text-muted-foreground">{p.email}</p>
+                        </div>
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-[9px] font-semibold text-primary uppercase">
+                          {p.role}
+                        </span>
+                      </div>
+                    ))}
+                    {saasCompanyDetails.collabs.length === 0 && (
+                      <p className="text-xs text-center text-muted-foreground py-4">Nenhum colaborador cadastrado.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Propostas Geradas */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/40 pb-1">
+                    Histórico de Propostas ({saasCompanyDetails.props.length})
+                  </h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {saasCompanyDetails.props.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-2.5 bg-background border border-border rounded-lg text-xs">
+                        <div>
+                          <p className="font-mono text-[9px] font-bold text-muted-foreground">{p.proposal_code}</p>
+                          <p className="font-semibold text-foreground mt-0.5">{p.clients?.name || "Cliente sem nome"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-foreground">{brl(Number(p.net_amount))}</p>
+                          <span className="inline-block mt-0.5 rounded px-1.5 py-0.2 text-[8px] font-semibold uppercase bg-secondary text-muted-foreground">
+                            {p.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {saasCompanyDetails.props.length === 0 && (
+                      <p className="text-xs text-center text-muted-foreground py-4">Nenhuma proposta criada.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

@@ -83,6 +83,7 @@ const emptyCollaboratorForm = {
 
 function CollaboratorsTab() {
   const qc = useQueryClient();
+  const { profile: loggedProfile, isGestor, activeCompanyId } = useAuth();
   const { data: profiles, isLoading: loadingProfiles } = useQuery(profilesQuery);
   const { data: companies } = useQuery(companiesQuery);
 
@@ -94,9 +95,11 @@ function CollaboratorsTab() {
 
   const openCreateModal = () => {
     setEditingProfile(null);
+    const userCompanyId = loggedProfile?.company_id || activeCompanyId;
     setForm({
       ...emptyCollaboratorForm,
-      company_ids: companies?.[0]?.id ? [companies[0].id] : [],
+      company_ids: isGestor && userCompanyId ? [userCompanyId] : companies?.[0]?.id ? [companies[0].id] : [],
+      role: "colaborador",
     });
     setModalOpen(true);
   };
@@ -231,18 +234,26 @@ function CollaboratorsTab() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filteredProfiles = (profiles ?? []).filter((p) => {
-    const term = searchTerm.toLowerCase().trim();
-    if (!term) return true;
-    const linkedCompanies = (companies ?? []).filter((c) => p.company_ids?.includes(c.id));
-    const companyNamesMatch = linkedCompanies.some((c) => c.name.toLowerCase().includes(term));
-    return (
-      (p.full_name ?? "").toLowerCase().includes(term) ||
-      p.email.toLowerCase().includes(term) ||
-      (p.company?.name ?? "").toLowerCase().includes(term) ||
-      companyNamesMatch
-    );
-  });
+  const filteredProfiles = (profiles ?? [])
+    .filter((p) => {
+      if (isGestor) {
+        const userCompanyId = loggedProfile?.company_id || activeCompanyId;
+        return p.company_id === userCompanyId || p.company_ids?.includes(userCompanyId || "");
+      }
+      return true;
+    })
+    .filter((p) => {
+      const term = searchTerm.toLowerCase().trim();
+      if (!term) return true;
+      const linkedCompanies = (companies ?? []).filter((c) => p.company_ids?.includes(c.id));
+      const companyNamesMatch = linkedCompanies.some((c) => c.name.toLowerCase().includes(term));
+      return (
+        (p.full_name ?? "").toLowerCase().includes(term) ||
+        p.email.toLowerCase().includes(term) ||
+        (p.company?.name ?? "").toLowerCase().includes(term) ||
+        companyNamesMatch
+      );
+    });
 
   return (
     <div className="space-y-4">
@@ -398,55 +409,56 @@ function CollaboratorsTab() {
               </div>
             ) : null}
 
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Vincular a Empresas</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full justify-between text-left font-normal text-xs h-10 border-input bg-background hover:bg-accent"
-                  >
-                    <span className="truncate">
-                      {form.company_ids.length === 0
-                        ? "Selecione as empresas"
-                        : form.company_ids.length === 1
-                        ? companies?.find((c) => c.id === form.company_ids[0])?.name
-                        : `${form.company_ids.length} empresas selecionadas`}
-                    </span>
-                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[380px] p-2 bg-popover border border-border rounded-lg shadow-md z-50">
-                  <div className="space-y-1 max-h-[220px] overflow-y-auto">
-                    {(companies ?? []).map((c) => {
-                      const isChecked = form.company_ids.includes(c.id);
-                      return (
-                        <label
-                          key={c.id}
-                          className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer text-xs select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setForm({ ...form, company_ids: [...form.company_ids, c.id] });
-                              } else {
-                                setForm({ ...form, company_ids: form.company_ids.filter((id) => id !== c.id) });
-                              }
-                            }}
-                            className="rounded border-input text-primary focus:ring-primary size-4"
-                          />
-                          <span className="font-medium text-foreground">{c.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-
+            {!isGestor && (
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Vincular a Empresas</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between text-left font-normal text-xs h-10 border-input bg-background hover:bg-accent"
+                    >
+                      <span className="truncate">
+                        {form.company_ids.length === 0
+                          ? "Selecione as empresas"
+                          : form.company_ids.length === 1
+                          ? companies?.find((c) => c.id === form.company_ids[0])?.name
+                          : `${form.company_ids.length} empresas selecionadas`}
+                      </span>
+                      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[380px] p-2 bg-popover border border-border rounded-lg shadow-md z-50">
+                    <div className="space-y-1 max-h-[220px] overflow-y-auto">
+                      {(companies ?? []).map((c) => {
+                        const isChecked = form.company_ids.includes(c.id);
+                        return (
+                          <label
+                            key={c.id}
+                            className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer text-xs select-none"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setForm({ ...form, company_ids: [...form.company_ids, c.id] });
+                                } else {
+                                  setForm({ ...form, company_ids: form.company_ids.filter((id) => id !== c.id) });
+                                }
+                              }}
+                              className="rounded border-input text-primary focus:ring-primary size-4"
+                            />
+                            <span className="font-medium text-foreground">{c.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
 
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Função / Permissão</Label>
@@ -459,7 +471,8 @@ function CollaboratorsTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="colaborador">Colaborador Comercial (Emite Propostas)</SelectItem>
-                  <SelectItem value="admin">Administrador (Acesso Total)</SelectItem>
+                  <SelectItem value="gestor">Gestor / Administrador Master (Acesso Total da Empresa)</SelectItem>
+                  {!isGestor && <SelectItem value="admin">Administrador da Plataforma (Acesso Total)</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -1315,6 +1328,28 @@ function CompaniesTab() {
    ========================================================================= */
 
 function AdminPage() {
+  const { profile, isAdmin, isGestor } = useAuth();
+  
+  if (isGestor) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-between pb-4 border-b border-border">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Minha Equipe
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Gerencie os colaboradores da sua empresa e convide novos membros.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6">
+          <CollaboratorsTab />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="flex items-center justify-between pb-4 border-b border-border">

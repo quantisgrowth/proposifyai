@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type PricingType = "recurring" | "one_time" | "setup" | "usage_based";
 export type ProposalStatus = string;
-export type UserRole = "admin" | "colaborador";
+export type UserRole = "admin" | "colaborador" | "gestor";
 
 export type KanbanColumn = {
   id: string;

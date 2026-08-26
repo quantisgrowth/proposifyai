@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
 import {
   FileText,
   PlusCircle,
@@ -62,11 +62,36 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     }
   }, []);
 
-  const { user, profile, company, isAdmin, activeCompanyId, accessibleCompanies, setActiveCompany } = useAuth();
+  const { user, profile, company, isAdmin, isGestor, activeCompanyId, accessibleCompanies, setActiveCompany } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Filtrar itens de navegação (apenas admins vêem a aba de admin)
-  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin);
+  // Dynamically filter navigation items based on user roles
+  const navItems = useMemo(() => {
+    if (isAdmin) {
+      return [
+        { to: "/dashboard", label: "Dashboard da Plataforma", icon: LayoutGrid },
+        { to: "/clientes", label: "Clientes da Plataforma", icon: Users },
+        { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal },
+      ];
+    }
+    
+    const items = [
+      { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+      { to: "/propostas", label: "Propostas", icon: FileText },
+      { to: "/nova", label: "Nova Proposta", icon: PlusCircle, highlight: true },
+      { to: "/produtos", label: "Catálogo de Produtos", icon: Package },
+      { to: "/clientes", label: "Clientes", icon: Users },
+    ];
+    
+    if (isGestor) {
+      items.push(
+        { to: "/automacoes", label: "Automações", icon: Cpu },
+        { to: "/admin", label: "Minha Equipe", icon: SlidersHorizontal }
+      );
+    }
+    
+    return items;
+  }, [isAdmin, isGestor]);
 
   const { data: proposalsData } = useQuery(proposalsQuery(activeCompanyId));
   const list = proposalsData ?? [];
@@ -136,7 +161,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
         </div>
 
         {/* Company Selector dropdown */}
-        {!sidebarCollapsed && (accessibleCompanies.length > 1 || isAdmin) && (
+        {!sidebarCollapsed && !isAdmin && accessibleCompanies.length > 1 && (
           <div className="mb-4 px-1">
             <Label className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground block mb-1">
               Empresa Ativa

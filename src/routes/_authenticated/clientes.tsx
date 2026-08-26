@@ -16,6 +16,9 @@ import {
   Sparkles,
   Loader2,
   FileText,
+  Upload,
+  Download,
+  ShieldAlert,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";

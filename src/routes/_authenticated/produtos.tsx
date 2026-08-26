@@ -576,7 +576,7 @@ function ProductsPage() {
                   <span className="rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {pricingLabel[p.pricing_type] ?? p.pricing_type}
                   </span>
-                  {comp && isAdmin && selectedCompanyId === "all" ? (
+                  {comp && isAdmin && !activeCompanyFilter ? (
                     <span className="flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                       <Building2 className="size-3" />
                       {comp.name}

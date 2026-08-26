@@ -522,28 +522,14 @@ function ProductsPage() {
             Defina preços praticados, limites de desconto para os vendedores e tabelas de faixas por volume.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            onClick={() => setImportModalOpen(true)}
-            variant="outline"
-            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
-          >
-            <Upload className="size-4" /> Importar Planilha
-          </Button>
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
-          >
-            <Download className="size-4" /> Exportar Planilha
-          </Button>
-          <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0 font-semibold">
+        <div className="flex items-center gap-2">
+          <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0 font-semibold shadow-sm w-full sm:w-auto justify-center">
             <Plus className="size-4" /> Novo Serviço / Produto
           </Button>
         </div>
       </div>
 
-      {/* Barra de Filtros & Busca */}
+      {/* Barra de Filtros & Busca & Ações de Planilha */}
       <div className="mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -551,11 +537,25 @@ function ProductsPage() {
             placeholder="Buscar produto ou serviço..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-10 text-sm"
+            className="pl-9 h-10 text-sm w-full"
           />
         </div>
-
-
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            onClick={() => setImportModalOpen(true)}
+            variant="outline"
+            className="gap-2 h-10 flex-1 sm:flex-none justify-center border-primary/30 text-primary hover:bg-primary/5 font-semibold text-xs sm:text-sm"
+          >
+            <Upload className="size-4" /> Importar Planilha
+          </Button>
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            className="gap-2 h-10 flex-1 sm:flex-none justify-center border-primary/30 text-primary hover:bg-primary/5 font-semibold text-xs sm:text-sm"
+          >
+            <Download className="size-4" /> Exportar Planilha
+          </Button>
+        </div>
       </div>
 
       {/* Lista de Produtos */}

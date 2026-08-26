@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/auth" });
     }
 
-    // Se estiver tentando acessar /admin, validar se o usuário é admin
+    // Se estiver tentando acessar /admin, validar se o usuário é admin ou gestor
     if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated")({
         .eq("id", data.user.id)
         .maybeSingle();
 
-      if (profile && profile.role !== "admin") {
+      if (profile && profile.role !== "admin" && profile.role !== "gestor") {
         throw redirect({ to: "/" });
       }
     }

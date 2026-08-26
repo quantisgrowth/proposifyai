@@ -20,6 +20,7 @@ import {
   UserCheck,
   LayoutGrid,
   Cpu,
+  User,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -72,6 +73,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
         { to: "/dashboard", label: "Dashboard da Plataforma", icon: LayoutGrid },
         { to: "/clientes", label: "Clientes da Plataforma", icon: Users },
         { to: "/admin", label: "Admin & Configurações", icon: SlidersHorizontal },
+        { to: "/meus-dados", label: "Meus Dados", icon: User },
       ];
     }
     
@@ -89,6 +91,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
         { to: "/admin", label: "Minha Equipe", icon: SlidersHorizontal }
       );
     }
+    
+    items.push({ to: "/meus-dados", label: "Meus Dados", icon: User });
     
     return items;
   }, [isAdmin, isGestor]);
@@ -230,8 +234,12 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
       {/* Footer Profile & Logout */}
       <div className="border-t border-border/80 pt-4">
         <div className="flex items-center justify-between gap-3">
-          <div className={`flex min-w-0 items-center ${sidebarCollapsed ? "justify-center w-full" : "gap-2.5"}`}>
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          <Link
+            to="/meus-dados"
+            className={`flex min-w-0 items-center hover:opacity-80 transition-opacity ${sidebarCollapsed ? "justify-center w-full" : "gap-2.5"}`}
+            title="Ver meus dados"
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary hover:ring-2 hover:ring-primary/20">
               {profile?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
             </div>
             {!sidebarCollapsed && (
@@ -245,7 +253,7 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 </div>
               </div>
             )}
-          </div>
+          </Link>
           {!sidebarCollapsed && (
             <Button
               size="icon"

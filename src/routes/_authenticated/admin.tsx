@@ -917,10 +917,10 @@ function CompaniesTab() {
               />
             </div>
 
-            {/* Seção 3: Rodapé e Textos Padrão da Proposta */}
+            {/* Seção 3: Rodapé da Proposta */}
             <div className="rounded-lg border border-border bg-secondary/10 p-4 space-y-3">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <FileText className="size-3.5 text-primary" /> Rodapé e Textos da Proposta Comercial
+                <FileText className="size-3.5 text-primary" /> Rodapé da Proposta Comercial
               </Label>
 
               <div className="grid gap-1.5">
@@ -931,57 +931,6 @@ function CompaniesTab() {
                   value={form.footer_text}
                   onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
                   placeholder="Ex: © 2026 Frotlog Soluções em Carga e Descarga LTDA — CNPJ: 53.968.073/0001-38"
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Nome da Solução Comercial Padrão</Label>
-                <Input
-                  value={form.solution_name}
-                  onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
-                  placeholder="Ex: Frotlog - Plataforma SaaS de Gestão e Pagamento de Despesas em Rota"
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor Padrão</Label>
-                <Textarea
-                  rows={3}
-                  value={form.objective_text}
-                  onChange={(e) => setForm({ ...form, objective_text: e.target.value })}
-                  placeholder="A presente proposta tem como objetivo apresentar as condições comerciais..."
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Funcionalidades e Escopo Padrão (Uma por linha no formato: Título: Descrição)
-                </Label>
-                <Textarea
-                  rows={4}
-                  value={form.scope_text}
-                  onChange={(e) => setForm({ ...form, scope_text: e.target.value })}
-                  placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Política de Fidelidade Padrão</Label>
-                <Textarea
-                  rows={2}
-                  value={form.fidelity_policy}
-                  onChange={(e) => setForm({ ...form, fidelity_policy: e.target.value })}
-                  placeholder="A nossa única fidelidade é a sua satisfação com a nossa ferramenta..."
-                />
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Próximos Passos para Ativação Padrão</Label>
-                <Textarea
-                  rows={3}
-                  value={form.next_steps_text}
-                  onChange={(e) => setForm({ ...form, next_steps_text: e.target.value })}
-                  placeholder="1. Validação e aceite...\n2. Reunião de alinhamento..."
                 />
               </div>
             </div>

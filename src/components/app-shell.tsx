@@ -67,7 +67,15 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Dynamically filter navigation items based on user roles
-  const navItems = useMemo(() => {
+  const navItems = useMemo<
+    Array<{
+      to: string;
+      label: string;
+      icon: typeof LayoutGrid;
+      highlight?: boolean;
+      exact?: boolean;
+    }>
+  >(() => {
     if (isAdmin) {
       return [
         { to: "/dashboard", label: "Dashboard da Plataforma", icon: LayoutGrid },

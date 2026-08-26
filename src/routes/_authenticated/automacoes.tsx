@@ -40,6 +40,7 @@ import {
   Handle,
   Connection,
   Edge,
+  Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -232,8 +233,8 @@ function AutomationsPage() {
   const [editingFlow, setEditingFlow] = useState<any>(null);
 
   // React Flow State
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
   // Configurator Drawer state
   const [selectedNode, setSelectedNode] = useState<any>(null);

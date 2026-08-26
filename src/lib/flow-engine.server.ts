@@ -97,6 +97,8 @@ export async function executeFlow(
             await handleEmailAction(node.data, context, company, flow.id);
           } else if (actionType === "webhook") {
             await handleWebhookAction(node.data, context, company, flow.id);
+          } else if (actionType === "asaas") {
+            await handleAsaasAction(node.data, context, company, flow.id);
           }
         } catch (actErr: any) {
           console.error(`[Flow Engine] Action execution failed for node ${node.id}:`, actErr);
@@ -297,5 +299,136 @@ async function handleEmailAction(
 
   if (!emailSent) {
     throw new Error("Failed to send flow e-mail: " + (errorMsg || "SMTP settings missing"));
+  }
+}
+
+// ----------------------------------------------------
+// ASAAS NATIVE INTEGRATION ACTION
+// ----------------------------------------------------
+async function handleAsaasAction(
+  nodeData: any,
+  context: FlowContext,
+  company: any,
+  flowId: string
+) {
+  const asaasToken = company.asaas_token || process.env['ASAAS_API_KEY'];
+  const isSandbox = !company.asaas_token || company.asaas_sandbox !== false;
+  const baseUrl = isSandbox ? "https://sandbox.asaas.com/api/v3" : "https://api.asaas.com/v3";
+
+  const client = context.client;
+  const proposal = context.proposal;
+
+  if (!client || !client.name || !client.email) {
+    throw new Error("Dados do cliente incompletos para emitir cobrança ASAAS (Nome e E-mail obrigatórios)");
+  }
+
+  console.log(`[ASAAS Action] Creating billing for proposal ${proposal.proposal_code}`);
+
+  let customerId = proposal.asaas_customer_id;
+  let paymentId = null;
+  let paymentUrl = null;
+  let responseText = "";
+  let statusCode = 200;
+  let errorMsg = null;
+
+  try {
+    if (!asaasToken) {
+      console.log("[ASAAS Action] Running in demo mode (no ASAAS_API_KEY found)");
+      customerId = proposal.asaas_customer_id || `cus_mock_${Math.random().toString(36).slice(2, 7)}`;
+      paymentId = `pay_mock_${Math.random().toString(36).slice(2, 7)}`;
+      paymentUrl = `https://sandbox.asaas.com/i/${paymentId}`;
+      responseText = JSON.stringify({
+        id: paymentId,
+        invoiceUrl: paymentUrl,
+        customer: customerId,
+        value: proposal.net_amount,
+        status: "PENDING",
+      });
+    } else {
+      if (!customerId) {
+        const customerRes = await fetch(`${baseUrl}/customers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: asaasToken,
+          },
+          body: JSON.stringify({
+            name: client.name,
+            email: client.email,
+            cpfCnpj: client.document || null,
+            phone: client.phone || null,
+            notificationDisabled: false,
+          }),
+        });
+
+        const customerData = await customerRes.json();
+        if (!customerRes.ok) {
+          throw new Error("Erro ao criar cliente no ASAAS: " + JSON.stringify(customerData));
+        }
+        customerId = customerData.id;
+      }
+
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 3);
+
+      const paymentRes = await fetch(`${baseUrl}/payments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasToken,
+        },
+        body: JSON.stringify({
+          customer: customerId,
+          billingType: nodeData.billing_type || "PIX",
+          value: Number(proposal.net_amount) || 0.01,
+          dueDate: dueDate.toISOString().slice(0, 10),
+          description: `Cobrança Proposta #${proposal.proposal_code} - ${company.name}`,
+          externalReference: proposal.id,
+        }),
+      });
+
+      const paymentData = await paymentRes.json();
+      statusCode = paymentRes.status;
+      responseText = JSON.stringify(paymentData);
+
+      if (!paymentRes.ok) {
+        throw new Error("Erro ao gerar cobrança no ASAAS: " + JSON.stringify(paymentData));
+      }
+
+      paymentId = paymentData.id;
+      paymentUrl = paymentData.invoiceUrl;
+    }
+
+    await supabaseAdmin
+      .from("proposals")
+      .update({
+        asaas_customer_id: customerId,
+        asaas_payment_id: paymentId,
+        asaas_payment_url: paymentUrl,
+      })
+      .eq("id", proposal.id);
+
+    console.log(`[ASAAS Action] Charge created successfully: ${paymentUrl}`);
+  } catch (err: any) {
+    statusCode = 500;
+    errorMsg = err.message;
+    responseText = JSON.stringify({ error: err.message });
+    console.error("[ASAAS Action Error]:", err);
+    throw err;
+  } finally {
+    await supabaseAdmin.from("integration_logs").insert({
+      company_id: company.id,
+      flow_id: flowId,
+      direction: "outgoing",
+      event_type: "asaas.create_charge",
+      status_code: statusCode,
+      payload: {
+        proposal_code: proposal.proposal_code,
+        customer_email: client.email,
+        net_amount: proposal.net_amount,
+      },
+      response_body: responseText.slice(0, 2000),
+      error_message: errorMsg,
+    });
   }
 }

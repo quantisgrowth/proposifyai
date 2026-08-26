@@ -176,6 +176,7 @@ const ConditionNode = ({ data, selected }: any) => {
 
 const ActionNode = ({ data, selected }: any) => {
   const isEmail = data.action_type === "email";
+  const isAsaas = data.action_type === "asaas";
   return (
     <div className={`p-4 rounded-xl border bg-slate-950/90 text-slate-100 min-w-[260px] shadow-2xl transition-all relative ${
       selected ? 'border-primary shadow-primary/20 ring-1 ring-primary' : 'border-border/60 hover:border-border'
@@ -185,12 +186,22 @@ const ActionNode = ({ data, selected }: any) => {
         <span className="text-[9px] uppercase font-bold text-amber-400 bg-amber-500/10 py-0.5 px-2 rounded-full flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-amber-400" /> Ação
         </span>
-        {isEmail ? <Terminal className="size-3.5 text-amber-400" /> : <ExternalLink className="size-3.5 text-amber-400" />}
+        {isAsaas ? (
+          <span className="text-[8px] bg-primary/20 text-primary font-extrabold px-1.5 py-0.2 rounded uppercase">Asaas</span>
+        ) : isEmail ? (
+          <Terminal className="size-3.5 text-amber-400" />
+        ) : (
+          <ExternalLink className="size-3.5 text-amber-400" />
+        )}
       </div>
       <div className="py-3">
-        <h4 className="text-xs font-bold text-foreground">{data.label || "Chamar Webhook"}</h4>
+        <h4 className="text-xs font-bold text-foreground">{data.label || (isAsaas ? "Gerar Cobrança ASAAS" : "Chamar Webhook")}</h4>
         <p className="text-[10px] text-muted-foreground mt-1 truncate">
-          {isEmail ? "Enviar E-mail Customizado" : "Webhook: " + (data.url || "Configurar URL...")}
+          {isAsaas
+            ? `Gerar Fatura: ${data.billing_type || "PIX"}`
+            : isEmail
+            ? "Enviar E-mail Customizado"
+            : "Webhook: " + (data.url || "Configurar URL...")}
         </p>
       </div>
       <div className="flex gap-4 pt-2 border-t border-border/20 justify-between text-[9px] text-muted-foreground">
@@ -1397,11 +1408,38 @@ function AutomationsPage() {
                     <SelectContent>
                       <SelectItem value="webhook" className="text-xs">Disparar Webhook de Saída</SelectItem>
                       <SelectItem value="email" className="text-xs">Enviar E-mail via SMTP</SelectItem>
+                      <SelectItem value="asaas" className="text-xs">Gerar Cobrança ASAAS (Nativo)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {nodeConfig.action_type === "webhook" ? (
+                {nodeConfig.action_type === "asaas" ? (
+                  <div className="space-y-3 bg-primary/5 p-3 rounded-lg border border-primary/20">
+                    <div className="grid gap-1">
+                      <Label className="text-xs font-semibold text-primary">Emitir Cobrança via ASAAS</Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        Gera um cliente e uma fatura Pix/Boleto no ASAAS automaticamente quando a proposta for assinada pelo cliente.
+                      </p>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label className="text-[11px] font-semibold text-muted-foreground">Tipo de Cobrança</Label>
+                      <Select
+                        value={nodeConfig.billing_type || "PIX"}
+                        onValueChange={(val) => setNodeConfig({ ...nodeConfig, billing_type: val })}
+                      >
+                        <SelectTrigger className="h-8.5 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PIX">Apenas Pix</SelectItem>
+                          <SelectItem value="BOLETO">Apenas Boleto</SelectItem>
+                          <SelectItem value="CREDIT_CARD">Cartão de Crédito</SelectItem>
+                          <SelectItem value="UNDEFINED">PIX, Boleto e Cartão (Opção do Cliente)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : nodeConfig.action_type === "webhook" ? (
                   <div className="space-y-3">
                     <div className="grid gap-1.5">
                       <Label className="text-xs font-semibold text-muted-foreground">Webhook URL de Destino</Label>

@@ -84,6 +84,12 @@ function ClientsPage() {
 
   const { data: clients, isLoading } = useQuery(clientsQuery(activeCompanyFilter));
 
+  // States for CSV import
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+
   // Modal and form states
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -170,6 +176,176 @@ function ClientsPage() {
       toast.error("Não foi possível buscar as informações do CNPJ.");
     } finally {
       setIsFetchingCnpj(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "Nome",
+      "CNPJ_CPF",
+      "Contato_Responsavel",
+      "Email",
+      "Telefone"
+    ];
+    
+    const rows = [
+      headers.join(";"),
+      `Translog Transportes Ltda;12.345.678/0001-99;Carlos Silva;comercial@translog.com.br;(11) 98765-4321`,
+      `Frota Veloz Distribuidores;98.765.432/0001-11;Ana Oliveira;financeiro@frotaveloz.com.br;(21) 2555-1234`
+    ];
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_importacao_clientes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportCSV = () => {
+    if (!clients || clients.length === 0) {
+      toast.error("Nenhum cliente cadastrado para exportar.");
+      return;
+    }
+
+    const headers = [
+      "Nome",
+      "CNPJ_CPF",
+      "Contato_Responsavel",
+      "Email",
+      "Telefone"
+    ];
+
+    const rows = [
+      headers.join(";"),
+      ...clients.map((c) => [
+        c.name || "",
+        c.document || "",
+        c.contact_name || "",
+        c.email || "",
+        c.phone || ""
+      ].join(";"))
+    ];
+
+    const csvContent = "\uFEFF" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `carteira_clientes_${company?.name?.toLowerCase().replace(/\s+/g, "_") || "proposify"}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Clientes exportados com sucesso!");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      parseCSV(text);
+    };
+    reader.readAsText(file);
+  };
+
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) {
+      toast.error("O arquivo está vazio ou não possui dados.");
+      return;
+    }
+
+    const headerLine = lines[0]!;
+    const delimiter = headerLine.includes(";") ? ";" : ",";
+    const rawHeaders = headerLine.split(delimiter).map((h) => h.trim().replace(/^["']|["']$/g, ""));
+
+    const parsed: any[] = [];
+    const errorsList: string[] = [];
+
+    const getHeaderIdx = (name: string) => {
+      return rawHeaders.findIndex((h) => h.toLowerCase() === name.toLowerCase() || h.toLowerCase().replace(/[^a-z0-9]/g, "") === name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    };
+
+    const nameIdx = getHeaderIdx("Nome");
+    const docIdx = getHeaderIdx("CNPJ_CPF");
+    const contactIdx = getHeaderIdx("Contato_Responsavel");
+    const emailIdx = getHeaderIdx("Email");
+    const phoneIdx = getHeaderIdx("Telefone");
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]!;
+      const regex = new RegExp(`\\s*${delimiter}\\s*(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)`);
+      const cols = line.split(regex).map((c) => c.trim().replace(/^["']|["']$/g, ""));
+
+      if (cols.length < 2) {
+        errorsList.push(`Linha ${i + 1}: Informações insuficientes.`);
+        continue;
+      }
+
+      const getVal = (idx: number, fallback = "") => (idx !== -1 && cols[idx] !== undefined ? cols[idx] : fallback);
+
+      const name = getVal(nameIdx);
+      const documentVal = getVal(docIdx);
+      const contact_name = getVal(contactIdx);
+      const email = getVal(emailIdx);
+      const phone = getVal(phoneIdx);
+
+      if (!name) {
+        errorsList.push(`Linha ${i + 1}: O nome do cliente é obrigatório.`);
+        continue;
+      }
+
+      parsed.push({
+        name,
+        document: documentVal || null,
+        contact_name: contact_name || null,
+        email: email || null,
+        phone: phone || null,
+      });
+    }
+
+    setImportPreview(parsed);
+    setImportErrors(errorsList);
+  };
+
+  const handleImportSubmit = async () => {
+    if (importPreview.length === 0) {
+      toast.error("Nenhum cliente válido para importar.");
+      return;
+    }
+
+    const targetCompanyId = activeCompanyFilter || company?.id;
+    if (!targetCompanyId) {
+      toast.error("Selecione uma empresa ativa antes de importar.");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const itemsData = importPreview.map((item) => ({
+        ...item,
+        company_id: targetCompanyId,
+      }));
+
+      const { error } = await supabase.from("clients").insert(itemsData);
+      if (error) throw error;
+
+      toast.success(`${importPreview.length} clientes importados com sucesso!`);
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      setImportPreview([]);
+      setImportErrors([]);
+      setImportModalOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Erro na importação: " + e.message);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -263,9 +439,25 @@ function ClientsPage() {
             Gerencie os clientes vinculados para emissão de propostas comerciais.
           </p>
         </div>
-        <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0">
-          <Plus className="size-4" /> Novo Cliente
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setImportModalOpen(true)}
+            variant="outline"
+            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
+            <Upload className="size-4" /> Importar Planilha
+          </Button>
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            className="gap-2 h-10 shrink-0 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
+            <Download className="size-4" /> Exportar Planilha
+          </Button>
+          <Button onClick={openCreateModal} className="gap-2 h-10 shrink-0 font-semibold">
+            <Plus className="size-4" /> Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -616,6 +808,117 @@ function ClientsPage() {
               disabled={save.isPending}
             >
               Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE IMPORTAÇÃO DE CLIENTES CSV */}
+      <Dialog open={importModalOpen} onOpenChange={(open) => {
+        setImportModalOpen(open);
+        if (!open) {
+          setImportPreview([]);
+          setImportErrors([]);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="size-5 text-primary" /> Importar Clientes via Planilha CSV
+            </DialogTitle>
+            <DialogDescription>
+              Carregue sua carteira de clientes de forma simplificada a partir de um arquivo CSV.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-secondary/10 p-4 rounded-lg border border-border">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Passo 1: Baixe a planilha de exemplo</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Preencha as linhas mantendo os nomes e a ordem das colunas originais.
+                </p>
+              </div>
+              <Button type="button" onClick={handleDownloadTemplate} size="sm" variant="outline" className="gap-1.5 shrink-0">
+                <Download className="size-3.5" /> Baixar Modelo CSV
+              </Button>
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-semibold text-foreground">Passo 2: Selecione o arquivo (.csv)</Label>
+              <div className="border border-dashed border-border rounded-lg p-5 flex flex-col items-center justify-center bg-background gap-2 hover:border-primary/50 transition-colors">
+                <Upload className="size-8 text-muted-foreground" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/95 cursor-pointer"
+                />
+                <p className="text-[10px] text-muted-foreground">Formato aceito: CSV delimitado por ponto e vírgula (;)</p>
+              </div>
+            </div>
+
+            {importErrors.length > 0 && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="size-4 shrink-0" /> Problemas identificados:
+                </p>
+                <ul className="list-disc list-inside max-h-32 overflow-y-auto pl-1 space-y-0.5">
+                  {importErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {importPreview.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-foreground">Passo 3: Visualizar Clientes para Importação ({importPreview.length})</Label>
+                <div className="border border-border rounded-lg overflow-x-auto max-h-64">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-secondary/40 border-b border-border text-muted-foreground font-semibold">
+                        <th className="p-2">Nome do Cliente</th>
+                        <th className="p-2">CNPJ / CPF</th>
+                        <th className="p-2">Contato</th>
+                        <th className="p-2">E-mail</th>
+                        <th className="p-2">Telefone</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {importPreview.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-secondary/10">
+                          <td className="p-2 font-medium">{item.name}</td>
+                          <td className="p-2">{item.document || "—"}</td>
+                          <td className="p-2 text-muted-foreground">{item.contact_name || "—"}</td>
+                          <td className="p-2">{item.email || "—"}</td>
+                          <td className="p-2 tabular-nums">{item.phone || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setImportModalOpen(false);
+                setImportPreview([]);
+                setImportErrors([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImportSubmit}
+              disabled={importing || importPreview.length === 0}
+              className="gap-1.5"
+            >
+              {importing ? "Salvando..." : "Confirmar Importação"}
             </Button>
           </DialogFooter>
         </DialogContent>

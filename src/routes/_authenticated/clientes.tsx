@@ -689,7 +689,7 @@ function ClientsPage() {
                   <th className="px-4 py-3.5 font-semibold">Cliente</th>
                   <th className="px-4 py-3.5 font-semibold">Documento</th>
                   <th className="px-4 py-3.5 font-semibold">Contato principal</th>
-                  {isAdmin && selectedCompanyId === "all" ? (
+                  {isAdmin && !activeCompanyFilter ? (
                     <th className="px-4 py-3.5 font-semibold">Empresa vinculada</th>
                   ) : null}
                   <th className="px-4 py-3.5 font-semibold">Cadastro</th>
@@ -719,7 +719,7 @@ function ClientsPage() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
-                      {isAdmin && selectedCompanyId === "all" ? (
+                      {isAdmin && !activeCompanyFilter ? (
                         <td className="px-4 py-3.5">
                           {comp ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -789,7 +789,7 @@ function ClientsPage() {
                             {c.document}
                           </span>
                         )}
-                        {comp && isAdmin && selectedCompanyId === "all" && (
+                        {comp && isAdmin && !activeCompanyFilter && (
                           <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                             <Building2 className="size-3" />
                             {comp.name}

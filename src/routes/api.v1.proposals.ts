@@ -42,13 +42,13 @@ export const Route = createFileRoute("/api/v1/proposals")({
 
           // Helper to log integration
           const logIntegration = async (params: {
-            flowId?: string | null;
+            flowId?: string | null | undefined;
             direction: 'incoming' | 'outgoing';
             eventType: string;
             statusCode: number;
             payload: any;
             responseBody: string;
-            errorMessage?: string | null;
+            errorMessage?: string | null | undefined;
           }) => {
             try {
               await supabaseAdmin.from("integration_logs").insert({

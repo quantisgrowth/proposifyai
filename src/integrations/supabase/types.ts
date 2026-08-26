@@ -10,10 +10,54 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
+      automation_flows: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          mapping_rules: Json
+          name: string
+          steps: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          mapping_rules?: Json
+          name: string
+          steps?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          mapping_rules?: Json
+          name?: string
+          steps?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_flows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           company_id: string | null
@@ -196,6 +240,60 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_logs: {
+        Row: {
+          company_id: string
+          created_at: string
+          direction: string
+          error_message: string | null
+          event_type: string
+          flow_id: string | null
+          id: string
+          payload: Json
+          response_body: string | null
+          status_code: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          event_type: string
+          flow_id?: string | null
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          status_code?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          event_type?: string
+          flow_id?: string | null
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          status_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_logs_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_columns: {
         Row: {
           color: string | null
@@ -237,44 +335,80 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          base_price_avista: number | null
           company_id: string | null
+          condicao_escolhida: string | null
           created_at: string
           description: string | null
+          forma_pagamento: string | null
           id: string
+          indice_carga_velocidade: string | null
+          lonas_pr: number | null
+          marca: string | null
           max_price: number | null
+          medida: string | null
           min_price: number | null
+          modelo: string | null
           name: string
+          numero_parcelas: number | null
+          posicao: string | null
           pricing_tier_notes: string | null
           pricing_tiers: Json | null
           pricing_type: Database["public"]["Enums"]["pricing_type"]
+          profundidade_sulco_mm: number | null
+          taxa_percentual: number | null
           unit_price: number
         }
         Insert: {
           active?: boolean
+          base_price_avista?: number | null
           company_id?: string | null
+          condicao_escolhida?: string | null
           created_at?: string
           description?: string | null
+          forma_pagamento?: string | null
           id?: string
+          indice_carga_velocidade?: string | null
+          lonas_pr?: number | null
+          marca?: string | null
           max_price?: number | null
+          medida?: string | null
           min_price?: number | null
+          modelo?: string | null
           name: string
+          numero_parcelas?: number | null
+          posicao?: string | null
           pricing_tier_notes?: string | null
           pricing_tiers?: Json | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          profundidade_sulco_mm?: number | null
+          taxa_percentual?: number | null
           unit_price?: number
         }
         Update: {
           active?: boolean
+          base_price_avista?: number | null
           company_id?: string | null
+          condicao_escolhida?: string | null
           created_at?: string
           description?: string | null
+          forma_pagamento?: string | null
           id?: string
+          indice_carga_velocidade?: string | null
+          lonas_pr?: number | null
+          marca?: string | null
           max_price?: number | null
+          medida?: string | null
           min_price?: number | null
+          modelo?: string | null
           name?: string
+          numero_parcelas?: number | null
+          posicao?: string | null
           pricing_tier_notes?: string | null
           pricing_tiers?: Json | null
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
+          profundidade_sulco_mm?: number | null
+          taxa_percentual?: number | null
           unit_price?: number
         }
         Relationships: [
@@ -321,30 +455,42 @@ export type Database = {
         Row: {
           active: boolean
           company_id: string | null
+          cpf: string | null
           created_at: string
           email: string
+          first_name: string | null
           full_name: string | null
           id: string
+          last_name: string | null
+          phone: string | null
           role: string
           updated_at: string
         }
         Insert: {
           active?: boolean
           company_id?: string | null
+          cpf?: string | null
           created_at?: string
           email: string
+          first_name?: string | null
           full_name?: string | null
           id: string
+          last_name?: string | null
+          phone?: string | null
           role?: string
           updated_at?: string
         }
         Update: {
           active?: boolean
           company_id?: string | null
+          cpf?: string | null
           created_at?: string
           email?: string
+          first_name?: string | null
           full_name?: string | null
           id?: string
+          last_name?: string | null
+          phone?: string | null
           role?: string
           updated_at?: string
         }
@@ -360,46 +506,82 @@ export type Database = {
       }
       proposal_items: {
         Row: {
+          base_price_avista: number | null
+          condicao_escolhida: string | null
           created_at: string
           description: string | null
+          forma_pagamento: string | null
           id: string
+          indice_carga_velocidade: string | null
           is_included: boolean | null
+          lonas_pr: number | null
+          marca: string | null
+          medida: string | null
+          modelo: string | null
+          numero_parcelas: number | null
           original_price: number | null
+          posicao: string | null
           position: number
           pricing_type: Database["public"]["Enums"]["pricing_type"]
           product_id: string | null
+          profundidade_sulco_mm: number | null
           proposal_id: string
           quantity: number
+          taxa_percentual: number | null
           title: string
           total_price: number
           unit_price: number
         }
         Insert: {
+          base_price_avista?: number | null
+          condicao_escolhida?: string | null
           created_at?: string
           description?: string | null
+          forma_pagamento?: string | null
           id?: string
+          indice_carga_velocidade?: string | null
           is_included?: boolean | null
+          lonas_pr?: number | null
+          marca?: string | null
+          medida?: string | null
+          modelo?: string | null
+          numero_parcelas?: number | null
           original_price?: number | null
+          posicao?: string | null
           position?: number
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           product_id?: string | null
+          profundidade_sulco_mm?: number | null
           proposal_id: string
           quantity?: number
+          taxa_percentual?: number | null
           title: string
           total_price?: number
           unit_price?: number
         }
         Update: {
+          base_price_avista?: number | null
+          condicao_escolhida?: string | null
           created_at?: string
           description?: string | null
+          forma_pagamento?: string | null
           id?: string
+          indice_carga_velocidade?: string | null
           is_included?: boolean | null
+          lonas_pr?: number | null
+          marca?: string | null
+          medida?: string | null
+          modelo?: string | null
+          numero_parcelas?: number | null
           original_price?: number | null
+          posicao?: string | null
           position?: number
           pricing_type?: Database["public"]["Enums"]["pricing_type"]
           product_id?: string | null
+          profundidade_sulco_mm?: number | null
           proposal_id?: string
           quantity?: number
+          taxa_percentual?: number | null
           title?: string
           total_price?: number
           unit_price?: number
@@ -430,6 +612,9 @@ export type Database = {
           accepted_by_name: string | null
           accepted_by_user_agent: string | null
           accepted_signature_url: string | null
+          asaas_customer_id: string | null
+          asaas_payment_id: string | null
+          asaas_payment_url: string | null
           campaign_name: string | null
           client_id: string | null
           company_id: string | null
@@ -461,6 +646,9 @@ export type Database = {
           accepted_by_name?: string | null
           accepted_by_user_agent?: string | null
           accepted_signature_url?: string | null
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          asaas_payment_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null
@@ -492,6 +680,9 @@ export type Database = {
           accepted_by_name?: string | null
           accepted_by_user_agent?: string | null
           accepted_signature_url?: string | null
+          asaas_customer_id?: string | null
+          asaas_payment_id?: string | null
+          asaas_payment_url?: string | null
           campaign_name?: string | null
           client_id?: string | null
           company_id?: string | null

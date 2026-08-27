@@ -25,6 +25,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { ImageCropperDialog } from "@/components/image-cropper";
+import { UploadProgressOverlay } from "@/components/upload-progress";
 
 export const Route = createFileRoute("/_authenticated/meus-dados")({
   head: () => ({
@@ -89,16 +91,34 @@ function MeusDadosPage() {
   });
   const [savingPlatform, setSavingPlatform] = useState(false);
 
+  // Reusable Image Cropper states
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState("");
+
+  // Simulated progress overlay states
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
+
   const handlePlatformLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("O logotipo deve ter no máximo 2MB.");
+        return;
+      }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPlatformLogo(reader.result as string);
-        toast.success("Logo da plataforma carregada!");
+      reader.onload = (event) => {
+        setRawImageSrc(event.target?.result as string);
+        setCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleConfirmLogoCrop = (croppedBase64: string) => {
+    setPlatformLogo(croppedBase64);
+    toast.success("Logo recortada e carregada!");
   };
 
   const handleSavePlatformSettings = (e: React.FormEvent) => {
@@ -107,17 +127,42 @@ function MeusDadosPage() {
       toast.error("Nome da plataforma é obrigatório.");
       return;
     }
-    setSavingPlatform(true);
-    try {
-      localStorage.setItem("platform-name", platformName.trim());
-      localStorage.setItem("platform-logo-url", platformLogo);
-      window.dispatchEvent(new Event("storage"));
-      toast.success("Configurações da plataforma atualizadas com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao salvar configurações da plataforma.");
-    } finally {
-      setSavingPlatform(false);
-    }
+    
+    setProgressOpen(true);
+    setSaveProgress(0);
+    setSaveStatus("Enviando logotipo e dados...");
+
+    // Simulated progress bar (1.5 seconds total)
+    const interval = setInterval(() => {
+      setSaveProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          try {
+            localStorage.setItem("platform-name", platformName.trim());
+            localStorage.setItem("platform-logo-url", platformLogo);
+            window.dispatchEvent(new Event("storage"));
+            toast.success("Configurações da plataforma salvas com sucesso!");
+          } catch (err) {
+            toast.error("Erro ao salvar configurações da plataforma.");
+          } finally {
+            setTimeout(() => setProgressOpen(false), 500);
+          }
+          return 100;
+        }
+
+        const next = prev + 5;
+        if (next < 30) {
+          setSaveStatus("Enviando logotipo e dados...");
+        } else if (next < 70) {
+          setSaveStatus("Processando e recortando logotipo...");
+        } else if (next < 90) {
+          setSaveStatus("Persistindo identidade visual...");
+        } else {
+          setSaveStatus("Concluído!");
+        }
+        return next;
+      });
+    }, 75);
   };
 
   // Initialize fields
@@ -414,7 +459,7 @@ function MeusDadosPage() {
                     </div>
 
                     <div className="grid gap-1.5">
-                      <Label className="text-xs font-semibold">Logo da Plataforma</Label>
+                      <Label className="text-xs font-semibold">Logo da Plataforma (Barra Lateral)</Label>
                       <div className="flex items-center gap-3">
                         {platformLogo ? (
                           <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
@@ -425,15 +470,18 @@ function MeusDadosPage() {
                             Sem Logo
                           </div>
                         )}
-                        <div className="flex-1">
+                        <div className="flex-1 space-y-1">
                           <Input
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
                             onChange={handlePlatformLogoUpload}
-                            className="h-8 text-xs cursor-pointer"
+                            className="h-9 text-xs cursor-pointer"
                           />
                         </div>
                       </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Dimensão ideal: <strong>120x40 pixels</strong> (proporção 3:1) | PNG ou JPG de até 2MB.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -616,6 +664,25 @@ function MeusDadosPage() {
         </div>
 
       </div>
+
+      {/* Image Cropper Dialog */}
+      <ImageCropperDialog
+        open={cropperOpen}
+        onOpenChange={setCropperOpen}
+        rawImageSrc={rawImageSrc}
+        aspectRatio={3}
+        title="Ajustar Logo da Plataforma"
+        description="Arraste a imagem e use o zoom para enquadrar a logo da barra lateral (proporção 3:1)."
+        onConfirm={handleConfirmLogoCrop}
+      />
+
+      {/* Upload/Save Progress overlay */}
+      <UploadProgressOverlay
+        open={progressOpen}
+        progress={saveProgress}
+        statusText={saveStatus}
+        title="Salvando Configurações da Plataforma"
+      />
     </AppShell>
   );
 }

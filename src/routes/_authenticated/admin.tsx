@@ -66,6 +66,8 @@ import {
   type UserRole,
 } from "@/lib/proposals";
 import { useAuth } from "@/lib/auth-context";
+import { ImageCropperDialog } from "@/components/image-cropper";
+import { UploadProgressOverlay } from "@/components/upload-progress";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -1297,6 +1299,11 @@ function ActiveCompanyTab() {
   const qc = useQueryClient();
   const { company, refreshProfile } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState("");
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
   const [form, setForm] = useState({
     name: "",
     tagline: "",
@@ -1468,13 +1475,22 @@ function ActiveCompanyTab() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("O logotipo deve ter no máximo 2MB.");
+        return;
+      }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev) => ({ ...prev, logo_url: reader.result as string }));
-        toast.success("Logo carregada com sucesso!");
+      reader.onload = (event) => {
+        setRawImageSrc(event.target?.result as string);
+        setCropperOpen(true);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleConfirmLogoCrop = (croppedBase64: string) => {
+    setForm((prev) => ({ ...prev, logo_url: croppedBase64 }));
+    toast.success("Logo recortada e carregada!");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1484,6 +1500,29 @@ function ActiveCompanyTab() {
       toast.error("Informe a Razão Social da empresa.");
       return;
     }
+
+    setProgressOpen(true);
+    setSaveProgress(0);
+    setSaveStatus("Enviando dados da empresa...");
+
+    // Simulated progress bar (1.2 seconds total)
+    const interval = setInterval(() => {
+      setSaveProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        const next = prev + 10;
+        if (next < 40) {
+          setSaveStatus("Enviando logotipo e dados...");
+        } else if (next < 80) {
+          setSaveStatus("Salvando configurações no banco...");
+        } else {
+          setSaveStatus("Finalizando...");
+        }
+        return next;
+      });
+    }, 100);
 
     setBusy(true);
     try {
@@ -1528,6 +1567,8 @@ function ActiveCompanyTab() {
 
       if (error) throw error;
 
+      setSaveProgress(100);
+      setSaveStatus("Concluído!");
       toast.success("Configurações da empresa atualizadas!");
       qc.invalidateQueries({ queryKey: ["companies"] });
       await refreshProfile();
@@ -1535,7 +1576,9 @@ function ActiveCompanyTab() {
       console.error(err);
       toast.error(err.message || "Erro ao salvar dados da empresa.");
     } finally {
+      clearInterval(interval);
       setBusy(false);
+      setTimeout(() => setProgressOpen(false), 500);
     }
   };
 
@@ -1610,15 +1653,18 @@ function ActiveCompanyTab() {
                       <img src={form.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
                     </div>
                   )}
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-1">
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
                       onChange={handleLogoUpload}
                       className="cursor-pointer text-xs h-9"
                     />
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Dimensão ideal: <strong>180x60 pixels</strong> (proporção 3:1) | PNG ou JPG de até 2MB.
+                </p>
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs font-semibold">Cor da Marca</Label>
@@ -2066,6 +2112,25 @@ function ActiveCompanyTab() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Image Cropper Dialog */}
+      <ImageCropperDialog
+        open={cropperOpen}
+        onOpenChange={setCropperOpen}
+        rawImageSrc={rawImageSrc}
+        aspectRatio={3}
+        title="Ajustar Logotipo da Empresa"
+        description="Arraste a imagem e use o zoom para enquadrar a logo (proporção de 3:1)."
+        onConfirm={handleConfirmLogoCrop}
+      />
+
+      {/* Upload/Save Progress overlay */}
+      <UploadProgressOverlay
+        open={progressOpen}
+        progress={saveProgress}
+        statusText={saveStatus}
+        title="Salvando Configurações da Empresa"
+      />
     </div>
   );
 }
@@ -2091,7 +2156,16 @@ function PlatformSettingsTab() {
   const [footerTerms, setFooterTerms] = useState("");
   const [footerPrivacy, setFooterPrivacy] = useState("");
 
-  const [busy, setBusy] = useState(false);
+  // Simulated progress overlay states
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
+
+  // Reusable Image Cropper states
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState("");
+  const [cropperAspectRatio, setCropperAspectRatio] = useState(3);
+  const [cropperTarget, setCropperTarget] = useState<"logo" | "favicon">("logo");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -2131,40 +2205,107 @@ function PlatformSettingsTab() {
             typeSetter("image");
           }
         }
-        toast.success("Arquivo carregado com sucesso!");
+        toast.success("Mídia visual carregada com sucesso!");
       };
       reader.readAsDataURL(file);
     }
   };
 
+  const handleLogoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("O logotipo deve ter no máximo 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setRawImageSrc(event.target?.result as string);
+        setCropperAspectRatio(3); // 3:1
+        setCropperTarget("logo");
+        setCropperOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFaviconFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 500 * 1024) {
+        toast.error("O favicon deve ter no máximo 500KB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setRawImageSrc(event.target?.result as string);
+        setCropperAspectRatio(1); // 1:1
+        setCropperTarget("favicon");
+        setCropperOpen(true);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleConfirmCrop = (croppedBase64: string) => {
+    if (cropperTarget === "logo") {
+      setPlatformLogo(croppedBase64);
+    } else {
+      setPlatformFavicon(croppedBase64);
+    }
+  };
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    try {
-      localStorage.setItem("platform-name", platformName.trim());
-      localStorage.setItem("platform-logo-url", platformLogo);
-      localStorage.setItem("platform-favicon-url", platformFavicon);
+    setProgressOpen(true);
+    setSaveProgress(0);
+    setSaveStatus("Enviando arquivos...");
 
-      localStorage.setItem("login-tagline", loginTagline.trim());
-      localStorage.setItem("login-title", loginTitle.trim());
-      localStorage.setItem("login-subtitle", loginSubtitle.trim());
-      localStorage.setItem("login-visual-url", loginVisualUrl);
-      localStorage.setItem("login-visual-type", loginVisualType);
+    // Simulated progress bar animation (1.6 seconds total)
+    const interval = setInterval(() => {
+      setSaveProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          try {
+            localStorage.setItem("platform-name", platformName.trim());
+            localStorage.setItem("platform-logo-url", platformLogo);
+            localStorage.setItem("platform-favicon-url", platformFavicon);
 
-      localStorage.setItem("footer-content-roadmap", footerRoadmap.trim());
-      localStorage.setItem("footer-content-docs", footerDocs.trim());
-      localStorage.setItem("footer-content-support", footerSupport.trim());
-      localStorage.setItem("footer-content-terms", footerTerms.trim());
-      localStorage.setItem("footer-content-privacy", footerPrivacy.trim());
+            localStorage.setItem("login-tagline", loginTagline.trim());
+            localStorage.setItem("login-title", loginTitle.trim());
+            localStorage.setItem("login-subtitle", loginSubtitle.trim());
+            localStorage.setItem("login-visual-url", loginVisualUrl);
+            localStorage.setItem("login-visual-type", loginVisualType);
 
-      // Sincronizar todos os componentes do app na mesma aba do navegador
-      window.dispatchEvent(new Event("storage"));
-      toast.success("Configurações visuais da plataforma atualizadas com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao salvar configurações no navegador.");
-    } finally {
-      setBusy(false);
-    }
+            localStorage.setItem("footer-content-roadmap", footerRoadmap.trim());
+            localStorage.setItem("footer-content-docs", footerDocs.trim());
+            localStorage.setItem("footer-content-support", footerSupport.trim());
+            localStorage.setItem("footer-content-terms", footerTerms.trim());
+            localStorage.setItem("footer-content-privacy", footerPrivacy.trim());
+
+            window.dispatchEvent(new Event("storage"));
+            toast.success("Configurações visuais da plataforma salvas com sucesso!");
+          } catch (err) {
+            toast.error("Erro ao salvar configurações no navegador.");
+          } finally {
+            setTimeout(() => setProgressOpen(false), 500);
+          }
+          return 100;
+        }
+
+        const next = prev + 5;
+        if (next < 30) {
+          setSaveStatus("Enviando arquivos...");
+        } else if (next < 65) {
+          setSaveStatus("Processando e recortando imagens...");
+        } else if (next < 90) {
+          setSaveStatus("Persistindo configurações...");
+        } else {
+          setSaveStatus("Concluído!");
+        }
+        return next;
+      });
+    }, 80);
   };
 
   return (
@@ -2199,7 +2340,7 @@ function PlatformSettingsTab() {
                 </div>
 
                 <div className="grid gap-1.5">
-                  <Label className="text-xs font-semibold">Logotipo da Plataforma</Label>
+                  <Label className="text-xs font-semibold">Logotipo da Plataforma (Tela de Login)</Label>
                   <div className="flex items-center gap-3">
                     {platformLogo ? (
                       <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
@@ -2210,15 +2351,18 @@ function PlatformSettingsTab() {
                         Sem Logo
                       </div>
                     )}
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-1">
                       <Input
                         type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileUpload(e, setPlatformLogo)}
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={handleLogoFileSelect}
                         className="h-9 text-xs cursor-pointer"
                       />
                     </div>
                   </div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">
+                    Dimensão ideal: <strong>180x60 pixels</strong> (proporção 3:1) | PNG ou JPG de até 2MB.
+                  </p>
                 </div>
 
                 <div className="grid gap-1.5">
@@ -2233,15 +2377,18 @@ function PlatformSettingsTab() {
                         Sem Icon
                       </div>
                     )}
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-1">
                       <Input
                         type="file"
-                        accept="image/x-icon,image/png"
-                        onChange={(e) => handleFileUpload(e, setPlatformFavicon)}
+                        accept="image/x-icon,image/png,image/jpeg"
+                        onChange={handleFaviconFileSelect}
                         className="h-9 text-xs cursor-pointer"
                       />
                     </div>
                   </div>
+                  <p className="text-[10px] text-muted-foreground leading-normal">
+                    Dimensão ideal: <strong>32x32 pixels</strong> (proporção 1:1) | ICO ou PNG de até 500KB.
+                  </p>
                 </div>
               </div>
             </div>
@@ -2311,10 +2458,13 @@ function PlatformSettingsTab() {
                       className="h-9 text-xs cursor-pointer"
                     />
                     <p className="text-[10px] text-muted-foreground">
-                      Suba uma imagem (.png, .jpg) ou vídeo (.mp4) de até 15MB. Vídeos tocarão automaticamente em loop e silenciosos no painel direito da tela de login.
+                      Suba uma imagem (.png, .jpg) ou vídeo (.mp4). Vídeos tocarão em loop no painel direito da tela de login.
                     </p>
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Dimensão ideal: <strong>proporção vertical/quadrada (ex: 1080x1080)</strong> | Vídeo: até 15MB, Imagem: até 5MB.
+                </p>
               </div>
             </div>
 
@@ -2387,14 +2537,36 @@ function PlatformSettingsTab() {
           <CardFooter className="border-t border-border pt-4 flex justify-end gap-2 bg-muted/20">
             <Button
               type="submit"
-              disabled={busy}
               className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/10"
             >
-              {busy ? "Salvando..." : "Salvar Configurações Visuais"}
+              Salvar Configurações Visuais
             </Button>
           </CardFooter>
         </form>
       </Card>
+
+      {/* Image Cropper Dialog */}
+      <ImageCropperDialog
+        open={cropperOpen}
+        onOpenChange={setCropperOpen}
+        rawImageSrc={rawImageSrc}
+        aspectRatio={cropperAspectRatio}
+        title={cropperTarget === "logo" ? "Ajustar Logotipo da Plataforma" : "Ajustar Favicon da Plataforma"}
+        description={
+          cropperTarget === "logo"
+            ? "Arraste a imagem e use o zoom para enquadrar a logo (proporção de 3:1)."
+            : "Arraste a imagem e use o zoom para enquadrar o favicon (proporção quadrada de 1:1)."
+        }
+        onConfirm={handleConfirmCrop}
+      />
+
+      {/* Upload/Save Progress overlay */}
+      <UploadProgressOverlay
+        open={progressOpen}
+        progress={saveProgress}
+        statusText={saveStatus}
+        title="Salvando Configurações Visuais"
+      />
     </div>
   );
 }

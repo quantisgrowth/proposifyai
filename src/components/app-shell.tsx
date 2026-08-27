@@ -296,29 +296,6 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
                 </Link>
               );
             })}
-
-            {/* Alternador de Sidebar integrado no menu */}
-            <button
-              onClick={() => {
-                const next = !sidebarCollapsed;
-                setSidebarCollapsed(next);
-                localStorage.setItem("sidebar-collapsed", String(next));
-                setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
-              }}
-              className={`w-full group relative flex items-center rounded-lg px-3 py-2.5 text-xs font-semibold transition-all duration-200 text-muted-foreground hover:bg-secondary/50 hover:text-foreground ${
-                sidebarCollapsed ? "justify-center px-2 mt-4" : "gap-3 mt-4"
-              }`}
-              title={sidebarCollapsed ? "Expandir menu" : "Recolher menu"}
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" />
-              ) : (
-                <>
-                  <ChevronLeft className="size-4 text-muted-foreground group-hover:text-foreground" />
-                  <span>Recolher Menu</span>
-                </>
-              )}
-            </button>
           </nav>
         </div>
       </div>

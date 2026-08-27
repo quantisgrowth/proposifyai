@@ -25,7 +25,7 @@ function NewProposalPage() {
   const search = useSearch({ from: "/_authenticated/nova" });
 
   return (
-    <AppShell>
+    <AppShell wide>
       <div className="flex items-center justify-between pb-4 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">

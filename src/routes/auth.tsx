@@ -17,6 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -50,10 +57,52 @@ function AuthPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
 
+  // Platform brand custom settings
+  const [platformName, setPlatformName] = useState("proposify ai");
+  const [platformLogo, setPlatformLogo] = useState("");
+  const [loginVisualUrl, setLoginVisualUrl] = useState("");
+  const [loginVisualType, setLoginVisualType] = useState<"image" | "video">("image");
+  const [loginTagline, setLoginTagline] = useState("acelere sua geração de propostas");
+  const [loginTitle, setLoginTitle] = useState("Olá,");
+  const [loginSubtitle, setLoginSubtitle] = useState("Bom ter você de volta");
+
+  // Footer modals
+  const [footerModalOpen, setFooterModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalContent, setModalContent] = useState("");
+
+  const loadPlatformSettings = () => {
+    if (typeof window !== "undefined") {
+      const storedName = localStorage.getItem("platform-name");
+      const storedLogo = localStorage.getItem("platform-logo-url");
+      const storedVisualUrl = localStorage.getItem("login-visual-url");
+      const storedVisualType = localStorage.getItem("login-visual-type") as "image" | "video";
+      const storedTagline = localStorage.getItem("login-tagline");
+      const storedTitle = localStorage.getItem("login-title");
+      const storedSubtitle = localStorage.getItem("login-subtitle");
+
+      if (storedName) setPlatformName(storedName);
+      if (storedLogo) setPlatformLogo(storedLogo);
+      if (storedVisualUrl) setLoginVisualUrl(storedVisualUrl);
+      if (storedVisualType) setLoginVisualType(storedVisualType);
+      if (storedTagline) setLoginTagline(storedTagline);
+      if (storedTitle) setLoginTitle(storedTitle);
+      if (storedSubtitle) setLoginSubtitle(storedSubtitle);
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/" });
     });
+
+    loadPlatformSettings();
+
+    // Listen to localStorage changes in real time
+    window.addEventListener("storage", loadPlatformSettings);
+    return () => {
+      window.removeEventListener("storage", loadPlatformSettings);
+    };
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -110,38 +159,84 @@ function AuthPage() {
     }
   };
 
+  const handleOpenFooterModal = (type: "roadmap" | "docs" | "support" | "terms" | "privacy") => {
+    let title = "";
+    const contentKey = `footer-content-${type}`;
+    let defaultContent = "";
+
+    switch (type) {
+      case "roadmap":
+        title = "Roadmap da Plataforma";
+        defaultContent = "Nosso roadmap está focado em trazer integrações com novos CRMs, automação avançada de propostas e relatórios inteligentes.";
+        break;
+      case "docs":
+        title = "Documentação";
+        defaultContent = "Bem-vindo à documentação oficial do Proposify AI. Aqui você encontra guias passo-a-passo sobre como criar e gerenciar suas propostas.";
+        break;
+      case "support":
+        title = "Suporte ao Cliente";
+        defaultContent = "Precisa de ajuda? Entre em contato com o nosso time de suporte técnico através do e-mail suporte@empresa.com ou pelo telefone oficial.";
+        break;
+      case "terms":
+        title = "Termos de Uso";
+        defaultContent = "Termos de Uso da Plataforma: Ao utilizar nossa plataforma, você concorda com nossos termos de prestação de serviços corporativos.";
+        break;
+      case "privacy":
+        title = "Aviso de Privacidade";
+        defaultContent = "Sua privacidade é muito importante para nós. Coletamos e processamos seus dados pessoais com o mais alto nível de segurança e em conformidade com a LGPD.";
+        break;
+    }
+
+    const storedContent = localStorage.getItem(contentKey);
+    setModalTitle(title);
+    setModalContent(storedContent || defaultContent);
+    setFooterModalOpen(true);
+  };
+
   return (
-    <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/20">
+    <div className="flex min-h-screen bg-[#070101] text-foreground selection:bg-red-500/20">
       {/* Left Column: Login Form */}
-      <div className="flex w-full flex-col justify-between p-6 sm:p-12 lg:w-1/2 lg:p-16 xl:p-20">
+      <div className="flex w-full flex-col justify-between p-6 sm:p-12 lg:w-1/2 lg:p-16 xl:p-20 relative z-10 bg-background/80 backdrop-blur-md">
+        
+        {/* Soft background glow for left column */}
+        <div className="absolute top-1/4 left-1/4 -z-10 size-72 rounded-full bg-red-600/5 blur-[100px]" />
+        
         <div>
           {/* Brand Logo & Tagline */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md">
-              <Sparkles className="size-5" />
-            </div>
+            {platformLogo ? (
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white border border-border p-1.5 overflow-hidden shadow-md shrink-0">
+                <img src={platformLogo} alt="Logo" className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : (
+              <div className="flex size-10 items-center justify-center rounded-xl bg-red-600 text-white shadow-md shadow-red-600/20 shrink-0">
+                <Sparkles className="size-5" />
+              </div>
+            )}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                acelere sua geração de propostas
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-red-500/80">
+                {loginTagline}
               </p>
-              <h2 className="text-xl font-bold tracking-tight text-foreground">proposify ai</h2>
+              <h2 className="text-xl font-extrabold tracking-tight text-foreground uppercase">
+                {platformName}
+              </h2>
             </div>
           </div>
 
           {/* Greetings */}
           <div className="mt-12 sm:mt-16">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Olá,
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              {loginTitle}
             </h1>
-            <p className="mt-1 text-2xl font-normal text-muted-foreground sm:text-3xl">
-              Bom ter você de volta
+            <p className="mt-1 text-2xl font-light text-muted-foreground sm:text-3xl">
+              {loginSubtitle}
             </p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="mt-8 max-w-md space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+              <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Usuário / E-mail:
               </Label>
               <div className="relative">
@@ -152,13 +247,13 @@ function AuthPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 rounded-lg border-border bg-card/60 px-4 text-sm transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="h-12 rounded-lg border-border bg-card/60 px-4 text-sm transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+              <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Senha:
               </Label>
               <div className="relative flex items-center">
@@ -169,7 +264,7 @@ function AuthPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-12 rounded-lg border-border bg-card/60 px-4 pr-11 text-sm transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  className="h-12 rounded-lg border-border bg-card/60 px-4 pr-11 text-sm transition-all focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                 />
                 <button
                   type="button"
@@ -185,7 +280,7 @@ function AuthPage() {
             <Button
               type="submit"
               disabled={busy}
-              className="mt-2 h-12 w-full rounded-lg bg-zinc-800 text-sm font-bold text-white shadow-sm transition-all hover:bg-zinc-900 hover:shadow-md uppercase tracking-wider"
+              className="mt-2 h-12 w-full rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-600/25 transition-all duration-300 hover:scale-[1.01] uppercase tracking-wider"
             >
               {busy ? "ENTRANDO..." : "LOGIN"}
             </Button>
@@ -194,13 +289,13 @@ function AuthPage() {
               <button
                 type="button"
                 onClick={() => setForgotPasswordOpen(true)}
-                className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary hover:underline"
+                className="text-xs font-semibold text-muted-foreground transition-colors hover:text-red-500 hover:underline bg-transparent border-0 cursor-pointer"
               >
                 Esqueci a senha
               </button>
               <Link
                 to="/admin-login"
-                className="text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground hover:underline"
+                className="text-[11px] font-medium text-muted-foreground/70 transition-colors hover:text-foreground hover:underline"
               >
                 É administrador? Acessar Portal Admin →
               </Link>
@@ -211,102 +306,155 @@ function AuthPage() {
         {/* Footer Navigation Links */}
         <footer className="mt-12 pt-6 border-t border-border/40">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-            <span className="hover:text-foreground cursor-pointer transition-colors">Roadmap</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Documentação</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Suporte</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Termos de Uso</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">Aviso de Privacidade</span>
+            <span
+              onClick={() => handleOpenFooterModal("roadmap")}
+              className="hover:text-red-500 cursor-pointer transition-colors font-medium"
+            >
+              Roadmap
+            </span>
+            <span
+              onClick={() => handleOpenFooterModal("docs")}
+              className="hover:text-red-500 cursor-pointer transition-colors font-medium"
+            >
+              Documentação
+            </span>
+            <span
+              onClick={() => handleOpenFooterModal("support")}
+              className="hover:text-red-500 cursor-pointer transition-colors font-medium"
+            >
+              Suporte
+            </span>
+            <span
+              onClick={() => handleOpenFooterModal("terms")}
+              className="hover:text-red-500 cursor-pointer transition-colors font-medium"
+            >
+              Termos de Uso
+            </span>
+            <span
+              onClick={() => handleOpenFooterModal("privacy")}
+              className="hover:text-red-500 cursor-pointer transition-colors font-medium"
+            >
+              Aviso de Privacidade
+            </span>
           </div>
           <p className="mt-2 text-[10px] text-muted-foreground/60">
-            © {new Date().getFullYear()} Proposify AI Inc. Acesso restrito a usuários autorizados.
+            © {new Date().getFullYear()} {platformName}. Acesso restrito a usuários autorizados.
           </p>
         </footer>
       </div>
 
-      {/* Right Column: High-Tech Visual Illustration (SpaceX / Modern AI Aesthetics) */}
-      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-secondary/40 via-secondary/20 to-background p-12 lg:flex lg:flex-col lg:items-center lg:justify-center">
-        {/* Subtle decorative background grids */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#8882_1px,transparent_1px),linear-gradient(to_bottom,#8882_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30" />
-
-        {/* Floating AI Proposal Visual Composition */}
-        <div className="relative z-10 w-full max-w-lg space-y-6">
-          {/* Main Hero Card */}
-          <div className="rounded-2xl border border-border/80 bg-card/80 p-6 shadow-2xl backdrop-blur-xl transition-transform duration-300 hover:scale-[1.01]">
-            <div className="flex items-center justify-between border-b border-border/60 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <FileCheck2 className="size-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-foreground">Proposta Comercial #PR-2026-08</p>
-                  <p className="text-[11px] text-muted-foreground">Quantis Growth • Em negociação</p>
-                </div>
-              </div>
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Aceite Rápido
-              </span>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-secondary/60 p-3">
-                <div className="flex items-center gap-2.5">
-                  <Zap className="size-4 text-amber-500" />
-                  <span className="text-xs font-medium text-foreground">Estratégia de Aquisição & IA</span>
-                </div>
-                <span className="text-xs font-semibold tabular-nums text-foreground">R$ 14.500,00</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg bg-secondary/60 p-3">
-                <div className="flex items-center gap-2.5">
-                  <TrendingUp className="size-4 text-primary" />
-                  <span className="text-xs font-medium text-foreground">Setup de Infraestrutura Cloud</span>
-                </div>
-                <span className="text-xs font-semibold tabular-nums text-foreground">R$ 4.200,00</span>
-              </div>
-            </div>
-
-            <div className="mt-4 flex items-center justify-between pt-3 border-t border-border/60">
-              <span className="text-xs text-muted-foreground">Valor Total Líquido</span>
-              <span className="text-lg font-bold tabular-nums text-foreground">R$ 18.700,00</span>
-            </div>
+      {/* Right Column: Dynamic Media / Visual Illustration */}
+      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-red-950/20 via-background to-[#0D0404] p-12 lg:flex lg:flex-col lg:items-center lg:justify-center border-l border-border/10">
+        
+        {/* Visual Media or Default Composition */}
+        {loginVisualUrl ? (
+          <div className="absolute inset-0 z-0 h-full w-full">
+            {loginVisualType === "video" ? (
+              <video
+                src={loginVisualUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <img
+                src={loginVisualUrl}
+                alt="Visual"
+                className="h-full w-full object-cover"
+              />
+            )}
+            {/* Elegant red gradient overlay to blend into the interface */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#070101] via-[#070101]/10 to-red-950/20 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#070101] via-transparent to-transparent opacity-80" />
           </div>
+        ) : (
+          <>
+            {/* Subtle decorative background grids and red blobs */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(220,38,38,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(220,38,38,0.06)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-40" />
+            <div className="absolute top-1/4 left-1/4 size-96 rounded-full bg-red-600/10 blur-[100px] animate-pulse" />
+            <div className="absolute bottom-1/4 right-1/4 size-96 rounded-full bg-red-500/5 blur-[120px]" />
 
-          {/* Floating Metric Badge */}
-          <div className="flex items-center justify-between rounded-xl border border-border/80 bg-card/60 p-4 shadow-lg backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div className="flex size-7 items-center justify-center rounded-full bg-sky-500/10 text-sky-500">
-                <TrendingUp className="size-3.5" />
+            {/* Floating AI Proposal Visual Composition */}
+            <div className="relative z-10 w-full max-w-lg space-y-6">
+              {/* Main Hero Card */}
+              <div className="rounded-2xl border border-red-900/30 bg-card/60 p-6 shadow-2xl backdrop-blur-xl transition-transform duration-300 hover:scale-[1.01]">
+                <div className="flex items-center justify-between border-b border-border/40 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+                      <FileCheck2 className="size-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Proposta Comercial #PR-2026-08</p>
+                      <p className="text-[11px] text-muted-foreground">Quantis Growth • Em negociação</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-red-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-red-500">
+                    Aceite Rápido
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-lg bg-secondary/40 p-3 border border-border/10">
+                    <div className="flex items-center gap-2.5">
+                      <Zap className="size-4 text-red-500" />
+                      <span className="text-xs font-medium text-foreground">Estratégia de Aquisição & IA</span>
+                    </div>
+                    <span className="text-xs font-semibold tabular-nums text-foreground">R$ 14.500,00</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-secondary/40 p-3 border border-border/10">
+                    <div className="flex items-center gap-2.5">
+                      <TrendingUp className="size-4 text-red-500" />
+                      <span className="text-xs font-medium text-foreground">Setup de Infraestrutura Cloud</span>
+                    </div>
+                    <span className="text-xs font-semibold tabular-nums text-foreground">R$ 4.200,00</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between pt-3 border-t border-border/40">
+                  <span className="text-xs text-muted-foreground">Valor Total Líquido</span>
+                  <span className="text-lg font-bold tabular-nums text-foreground">R$ 18.700,00</span>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Taxa Média de Conversão</p>
-                <p className="text-[11px] text-muted-foreground">+34% mais rápida com IA</p>
+
+              {/* Floating Metric Badge */}
+              <div className="flex items-center justify-between rounded-xl border border-red-900/30 bg-card/40 p-4 shadow-lg backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-7 items-center justify-center rounded-full bg-red-500/10 text-red-500">
+                    <TrendingUp className="size-3.5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Taxa Média de Conversão</p>
+                    <p className="text-[11px] text-muted-foreground">+34% mais rápida com IA</p>
+                  </div>
+                </div>
+                <p className="text-xl font-bold tabular-nums text-red-500">78.4%</p>
               </div>
             </div>
-            <p className="text-xl font-bold tabular-nums text-primary">78.4%</p>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Forgot Password Modal Dialog */}
       {forgotPasswordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
-            onClick={() => setForgotPasswordOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Lock className="size-4" />
+        <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+          <DialogContent className="sm:max-w-md bg-card/95 border-red-900/30 backdrop-blur">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+                  <Lock className="size-4" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-foreground">Recuperação de Senha</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Enviaremos um link para você redefinir sua senha.
+                  </DialogDescription>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-foreground">Recuperação de Senha</h3>
-                <p className="text-xs text-muted-foreground">
-                  Enviaremos um link para você redefinir sua senha.
-                </p>
-              </div>
-            </div>
+            </DialogHeader>
 
-            <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
+            <form onSubmit={handleResetPassword} className="mt-2 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="reset-email" className="text-xs font-medium text-muted-foreground">
                   Seu e-mail cadastrado:
@@ -318,7 +466,7 @@ function AuthPage() {
                     placeholder="nome@empresa.com"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="h-11 rounded-lg"
+                    className="h-11 rounded-lg focus:border-red-500 focus:ring-red-500/20"
                     required
                   />
                 </div>
@@ -336,14 +484,37 @@ function AuthPage() {
                 <Button
                   type="submit"
                   disabled={resetBusy}
-                  className="rounded-lg text-xs"
+                  className="rounded-lg text-xs bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/20"
                 >
                   {resetBusy ? "Enviando..." : "Enviar instruções"}
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Footer Info Modal Dialog */}
+      {footerModalOpen && (
+        <Dialog open={footerModalOpen} onOpenChange={setFooterModalOpen}>
+          <DialogContent className="sm:max-w-lg bg-card/95 border-red-900/30 backdrop-blur max-h-[85vh] overflow-y-auto">
+            <DialogHeader className="border-b border-border/40 pb-3">
+              <DialogTitle className="text-lg font-bold text-foreground">{modalTitle}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+              {modalContent}
+            </div>
+            <div className="flex justify-end pt-2 border-t border-border/40">
+              <Button
+                type="button"
+                onClick={() => setFooterModalOpen(false)}
+                className="rounded-lg text-xs bg-red-600 hover:bg-red-700 text-white"
+              >
+                Fechar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

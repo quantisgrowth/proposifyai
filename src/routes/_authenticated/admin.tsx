@@ -2071,6 +2071,335 @@ function ActiveCompanyTab() {
 }
 
 /* =========================================================================
+   3. ABA CONFIGURAÇÕES (Gestão da Identidade Visual e Informações de Rodapé)
+   ========================================================================= */
+
+function PlatformSettingsTab() {
+  const [platformName, setPlatformName] = useState("proposify ai");
+  const [platformLogo, setPlatformLogo] = useState("");
+  const [platformFavicon, setPlatformFavicon] = useState("");
+
+  const [loginTagline, setLoginTagline] = useState("acelere sua geração de propostas");
+  const [loginTitle, setLoginTitle] = useState("Olá,");
+  const [loginSubtitle, setLoginSubtitle] = useState("Bom ter você de volta");
+  const [loginVisualUrl, setLoginVisualUrl] = useState("");
+  const [loginVisualType, setLoginVisualType] = useState<"image" | "video">("image");
+
+  const [footerRoadmap, setFooterRoadmap] = useState("");
+  const [footerDocs, setFooterDocs] = useState("");
+  const [footerSupport, setFooterSupport] = useState("");
+  const [footerTerms, setFooterTerms] = useState("");
+  const [footerPrivacy, setFooterPrivacy] = useState("");
+
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPlatformName(localStorage.getItem("platform-name") || "proposify ai");
+      setPlatformLogo(localStorage.getItem("platform-logo-url") || "");
+      setPlatformFavicon(localStorage.getItem("platform-favicon-url") || "");
+
+      setLoginTagline(localStorage.getItem("login-tagline") || "acelere sua geração de propostas");
+      setLoginTitle(localStorage.getItem("login-title") || "Olá,");
+      setLoginSubtitle(localStorage.getItem("login-subtitle") || "Bom ter você de volta");
+      setLoginVisualUrl(localStorage.getItem("login-visual-url") || "");
+      setLoginVisualType((localStorage.getItem("login-visual-type") as "image" | "video") || "image");
+
+      setFooterRoadmap(localStorage.getItem("footer-content-roadmap") || "");
+      setFooterDocs(localStorage.getItem("footer-content-docs") || "");
+      setFooterSupport(localStorage.getItem("footer-content-support") || "");
+      setFooterTerms(localStorage.getItem("footer-content-terms") || "");
+      setFooterPrivacy(localStorage.getItem("footer-content-privacy") || "");
+    }
+  }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void, typeSetter?: (type: "image" | "video") => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error("O arquivo excede o limite de tamanho de 15MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setter(reader.result as string);
+        if (typeSetter) {
+          if (file.type.startsWith("video/")) {
+            typeSetter("video");
+          } else {
+            typeSetter("image");
+          }
+        }
+        toast.success("Arquivo carregado com sucesso!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      localStorage.setItem("platform-name", platformName.trim());
+      localStorage.setItem("platform-logo-url", platformLogo);
+      localStorage.setItem("platform-favicon-url", platformFavicon);
+
+      localStorage.setItem("login-tagline", loginTagline.trim());
+      localStorage.setItem("login-title", loginTitle.trim());
+      localStorage.setItem("login-subtitle", loginSubtitle.trim());
+      localStorage.setItem("login-visual-url", loginVisualUrl);
+      localStorage.setItem("login-visual-type", loginVisualType);
+
+      localStorage.setItem("footer-content-roadmap", footerRoadmap.trim());
+      localStorage.setItem("footer-content-docs", footerDocs.trim());
+      localStorage.setItem("footer-content-support", footerSupport.trim());
+      localStorage.setItem("footer-content-terms", footerTerms.trim());
+      localStorage.setItem("footer-content-privacy", footerPrivacy.trim());
+
+      // Sincronizar todos os componentes do app na mesma aba do navegador
+      window.dispatchEvent(new Event("storage"));
+      toast.success("Configurações visuais da plataforma atualizadas com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar configurações no navegador.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-border bg-card/50 backdrop-blur shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <SlidersHorizontal className="size-5 text-red-500" />
+            Configurações de Identidade Visual e Layout
+          </CardTitle>
+          <CardDescription>
+            Personalize a marca da plataforma, os elementos visuais e de copy da tela de login, e as páginas de informação.
+          </CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSaveSettings}>
+          <CardContent className="space-y-6">
+            
+            {/* Seção 1: Identidade da Marca */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold border-b border-border pb-1 text-foreground">1. Identidade da Marca</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="platform-name" className="text-xs font-semibold">Nome da Plataforma</Label>
+                  <Input
+                    id="platform-name"
+                    value={platformName}
+                    onChange={(e) => setPlatformName(e.target.value)}
+                    placeholder="Ex: Proposify AI"
+                    required
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Logotipo da Plataforma</Label>
+                  <div className="flex items-center gap-3">
+                    {platformLogo ? (
+                      <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
+                        <img src={platformLogo} alt="Logo" className="max-h-full max-w-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="size-10 rounded border border-dashed border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground shrink-0">
+                        Sem Logo
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, setPlatformLogo)}
+                        className="h-9 text-xs cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-xs font-semibold">Favicon da Plataforma</Label>
+                  <div className="flex items-center gap-3">
+                    {platformFavicon ? (
+                      <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
+                        <img src={platformFavicon} alt="Favicon" className="max-h-full max-w-full object-contain" />
+                      </div>
+                    ) : (
+                      <div className="size-10 rounded border border-dashed border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground shrink-0">
+                        Sem Icon
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/x-icon,image/png"
+                        onChange={(e) => handleFileUpload(e, setPlatformFavicon)}
+                        className="h-9 text-xs cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 2: Personalização da Tela de Login */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-semibold border-b border-border pb-1 text-foreground">2. Copy e Visual da Tela de Login</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="login-tagline" className="text-xs font-semibold">Slogan Superior (Tagline)</Label>
+                  <Input
+                    id="login-tagline"
+                    value={loginTagline}
+                    onChange={(e) => setLoginTagline(e.target.value)}
+                    placeholder="Ex: acelere sua geração de propostas"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="login-title" className="text-xs font-semibold">Título de Boas-vindas</Label>
+                  <Input
+                    id="login-title"
+                    value={loginTitle}
+                    onChange={(e) => setLoginTitle(e.target.value)}
+                    placeholder="Ex: Olá,"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="login-subtitle" className="text-xs font-semibold">Subtítulo de Boas-vindas</Label>
+                  <Input
+                    id="login-subtitle"
+                    value={loginSubtitle}
+                    onChange={(e) => setLoginSubtitle(e.target.value)}
+                    placeholder="Ex: Bom ter você de volta"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Mídia Visual Lateral (Vídeo MP4 ou Imagem)</Label>
+                <div className="flex items-center gap-4">
+                  {loginVisualUrl ? (
+                    <div className="size-24 rounded border border-border bg-slate-950 flex items-center justify-center p-0.5 overflow-hidden shrink-0 relative">
+                      {loginVisualType === "video" ? (
+                        <video src={loginVisualUrl} muted className="max-h-full max-w-full object-cover" />
+                      ) : (
+                        <img src={loginVisualUrl} alt="Visual" className="max-h-full max-w-full object-cover" />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { setLoginVisualUrl(""); setLoginVisualType("image"); }}
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 size-4 flex items-center justify-center hover:bg-red-700"
+                        title="Remover mídia"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="size-24 rounded border border-dashed border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground shrink-0 text-center p-2">
+                      Usando card padrão (fallback comercial)
+                    </div>
+                  )}
+                  <div className="flex-1 grid gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*,video/mp4"
+                      onChange={(e) => handleFileUpload(e, setLoginVisualUrl, setLoginVisualType)}
+                      className="h-9 text-xs cursor-pointer"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Suba uma imagem (.png, .jpg) ou vídeo (.mp4) de até 15MB. Vídeos tocarão automaticamente em loop e silenciosos no painel direito da tela de login.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção 3: Informações do Rodapé */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-sm font-semibold border-b border-border pb-1 text-foreground">3. Conteúdo Informativo do Rodapé (Telas de Login)</h3>
+              <p className="text-xs text-muted-foreground">
+                Insira as informações que serão exibidas em modais quando os usuários clicarem nos links do rodapé da tela de login.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="footer-roadmap" className="text-xs font-semibold">Conteúdo: Roadmap</Label>
+                  <Textarea
+                    id="footer-roadmap"
+                    value={footerRoadmap}
+                    onChange={(e) => setFooterRoadmap(e.target.value)}
+                    placeholder="Quais são as próximas funcionalidades planejadas?"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="footer-docs" className="text-xs font-semibold">Conteúdo: Documentação</Label>
+                  <Textarea
+                    id="footer-docs"
+                    value={footerDocs}
+                    onChange={(e) => setFooterDocs(e.target.value)}
+                    placeholder="Instruções de uso ou links rápidos para guias da plataforma."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="footer-support" className="text-xs font-semibold">Conteúdo: Suporte</Label>
+                  <Textarea
+                    id="footer-support"
+                    value={footerSupport}
+                    onChange={(e) => setFooterSupport(e.target.value)}
+                    placeholder="Instruções de contato suporte comercial ou de atendimento técnico."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label htmlFor="footer-terms" className="text-xs font-semibold">Conteúdo: Termos de Uso</Label>
+                  <Textarea
+                    id="footer-terms"
+                    value={footerTerms}
+                    onChange={(e) => setFooterTerms(e.target.value)}
+                    placeholder="Texto completo dos termos de serviço da plataforma."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1.5 max-w-xl">
+                <Label htmlFor="footer-privacy" className="text-xs font-semibold">Conteúdo: Aviso de Privacidade</Label>
+                <Textarea
+                  id="footer-privacy"
+                  value={footerPrivacy}
+                  onChange={(e) => setFooterPrivacy(e.target.value)}
+                  placeholder="Detalhamento sobre o tratamento de dados pessoais (em conformidade com a LGPD)."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+          </CardContent>
+          <CardFooter className="border-t border-border pt-4 flex justify-end gap-2 bg-muted/20">
+            <Button
+              type="submit"
+              disabled={busy}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-600/10"
+            >
+              {busy ? "Salvando..." : "Salvar Configurações Visuais"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+/* =========================================================================
    PÁGINA PRINCIPAL ADMIN
    ========================================================================= */
 
@@ -2143,12 +2472,15 @@ function AdminPage() {
       </div>
 
       <Tabs defaultValue="colaboradores" className="mt-6">
-        <TabsList className="grid grid-cols-2 max-w-xs">
+        <TabsList className="grid grid-cols-3 max-w-md">
           <TabsTrigger value="colaboradores" className="gap-2 text-xs">
             <Users className="size-4" /> Colaboradores
           </TabsTrigger>
           <TabsTrigger value="empresas" className="gap-2 text-xs">
             <Building2 className="size-4" /> Empresas
+          </TabsTrigger>
+          <TabsTrigger value="configuracoes" className="gap-2 text-xs">
+            <SlidersHorizontal className="size-4" /> Configurações
           </TabsTrigger>
         </TabsList>
 
@@ -2157,6 +2489,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="empresas" className="mt-6">
           <CompaniesTab />
+        </TabsContent>
+        <TabsContent value="configuracoes" className="mt-6">
+          <PlatformSettingsTab />
         </TabsContent>
       </Tabs>
     </AppShell>

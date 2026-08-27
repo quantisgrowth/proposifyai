@@ -1,12 +1,19 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ShieldCheck, Lock, ArrowRight, Eye, EyeOff, Building2, Users2 } from "lucide-react";
+import { ShieldCheck, Lock, ArrowRight, Eye, EyeOff, Building2, Users2, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/admin-login")({
   ssr: false,
@@ -31,6 +38,20 @@ function AdminLoginPage() {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
+
+  // Platform brand custom settings
+  const [platformName, setPlatformName] = useState("Proposify AI");
+  const [platformLogo, setPlatformLogo] = useState("");
+
+  const loadPlatformSettings = () => {
+    if (typeof window !== "undefined") {
+      const storedName = localStorage.getItem("platform-name");
+      const storedLogo = localStorage.getItem("platform-logo-url");
+
+      if (storedName) setPlatformName(storedName);
+      if (storedLogo) setPlatformLogo(storedLogo);
+    }
+  };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +95,14 @@ function AdminLoginPage() {
         }
       }
     });
+
+    loadPlatformSettings();
+
+    // Listen to localStorage changes in real time
+    window.addEventListener("storage", loadPlatformSettings);
+    return () => {
+      window.removeEventListener("storage", loadPlatformSettings);
+    };
   }, [navigate]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -118,25 +147,31 @@ function AdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#07090E] px-4 text-foreground selection:bg-primary/20">
+    <div className="flex min-h-screen items-center justify-center bg-[#070101] px-4 text-foreground selection:bg-red-500/20">
       {/* Background Glow */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
-        <div className="size-[500px] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="size-[500px] rounded-full bg-red-600/10 blur-[120px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#0E1118]/90 p-8 shadow-2xl backdrop-blur-2xl sm:p-10">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/5 bg-[#0E0707]/90 p-8 shadow-2xl backdrop-blur-2xl sm:p-10">
         {/* Header Badge */}
-        <div className="flex items-center justify-between pb-6 border-b border-white/10">
+        <div className="flex items-center justify-between pb-6 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
-              <ShieldCheck className="size-5" />
-            </div>
+            {platformLogo ? (
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white border border-white/10 p-1.5 overflow-hidden shadow-lg shrink-0">
+                <img src={platformLogo} alt="Logo" className="max-h-full max-w-full object-contain" />
+              </div>
+            ) : (
+              <div className="flex size-10 items-center justify-center rounded-xl bg-red-600 text-white shadow-lg shrink-0">
+                <ShieldCheck className="size-5" />
+              </div>
+            )}
             <div>
-              <h1 className="text-base font-bold tracking-tight text-white">Portal Admin</h1>
-              <p className="text-[11px] text-muted-foreground">Proposify AI Enterprise</p>
+              <h1 className="text-base font-extrabold tracking-tight text-white uppercase">Portal Admin</h1>
+              <p className="text-[11px] font-semibold text-red-500">{platformName} Enterprise</p>
             </div>
           </div>
-          <span className="rounded-full border border-primary/30 bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+          <span className="rounded-full border border-red-500/30 bg-red-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-500">
             Restrito
           </span>
         </div>
@@ -150,7 +185,7 @@ function AdminLoginPage() {
         {/* Login Form */}
         <form onSubmit={handleAdminLogin} className="mt-6 space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="admin-email" className="text-xs font-medium text-muted-foreground">
+            <Label htmlFor="admin-email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               E-mail do Administrador
             </Label>
             <Input
@@ -160,12 +195,12 @@ function AdminLoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 rounded-lg border-white/10 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/30 focus:border-primary focus:ring-1 focus:ring-primary"
+              className="h-11 rounded-lg border-white/5 bg-white/5 px-3.5 text-sm text-white placeholder:text-white/30 focus:border-red-500 focus:ring-1 focus:ring-red-500"
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="admin-password" className="text-xs font-medium text-muted-foreground">
+            <Label htmlFor="admin-password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Senha de Acesso
             </Label>
             <div className="relative flex items-center">
@@ -176,7 +211,7 @@ function AdminLoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 rounded-lg border-white/10 bg-white/5 px-3.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-primary focus:ring-1 focus:ring-primary"
+                className="h-11 rounded-lg border-white/5 bg-white/5 px-3.5 pr-10 text-sm text-white placeholder:text-white/30 focus:border-red-500 focus:ring-1 focus:ring-red-500"
               />
               <button
                 type="button"
@@ -191,7 +226,7 @@ function AdminLoginPage() {
           <Button
             type="submit"
             disabled={busy}
-            className="mt-2 h-11 w-full rounded-lg bg-zinc-800 text-sm font-bold text-white shadow-md transition-all hover:bg-zinc-900 uppercase tracking-wider"
+            className="mt-2 h-11 w-full rounded-lg bg-red-600 hover:bg-red-700 text-sm font-bold text-white shadow-lg shadow-red-600/25 transition-all duration-300 hover:scale-[1.01] uppercase tracking-wider"
           >
             {busy ? "VALIDANDO CREDENCIAIS..." : "ENTRAR NO PAINEL ADMIN"}
           </Button>
@@ -200,14 +235,14 @@ function AdminLoginPage() {
             <button
               type="button"
               onClick={() => setForgotPasswordOpen(true)}
-              className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary hover:underline bg-transparent border-0 cursor-pointer"
+              className="text-xs font-semibold text-muted-foreground transition-colors hover:text-red-500 hover:underline bg-transparent border-0 cursor-pointer"
             >
               Esqueci a senha
             </button>
           </div>
         </form>
 
-        <div className="mt-8 border-t border-white/10 pt-4 text-center">
+        <div className="mt-8 border-t border-white/5 pt-4 text-center">
           <Link
             to="/auth"
             className="text-xs text-muted-foreground transition-colors hover:text-white hover:underline"
@@ -219,25 +254,23 @@ function AdminLoginPage() {
 
       {/* Forgot Password Modal Dialog */}
       {forgotPasswordOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-[#07090E]/80 backdrop-blur-sm"
-            onClick={() => setForgotPasswordOpen(false)}
-          />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-white/10 bg-[#0E1118]/90 p-6 shadow-2xl backdrop-blur-2xl">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Lock className="size-4" />
+        <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+          <DialogContent className="sm:max-w-md bg-card/95 border-red-900/30 backdrop-blur text-white">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+                  <Lock className="size-4" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-white">Recuperação de Senha</DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    Enviaremos um link para você redefinir sua senha de acesso.
+                  </DialogDescription>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-white">Recuperação de Senha</h3>
-                <p className="text-xs text-muted-foreground">
-                  Enviaremos um link para você redefinir sua senha de acesso.
-                </p>
-              </div>
-            </div>
+            </DialogHeader>
 
-            <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
+            <form onSubmit={handleResetPassword} className="mt-2 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="reset-email" className="text-xs font-medium text-muted-foreground">
                   Seu e-mail cadastrado:
@@ -249,7 +282,7 @@ function AdminLoginPage() {
                     placeholder="nome@empresa.com"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="h-11 rounded-lg border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-red-500 focus:ring-1 focus:ring-red-500"
                     required
                   />
                 </div>
@@ -267,14 +300,14 @@ function AdminLoginPage() {
                 <Button
                   type="submit"
                   disabled={resetBusy}
-                  className="rounded-lg text-xs bg-primary text-primary-foreground hover:bg-primary/95"
+                  className="rounded-lg text-xs bg-red-600 hover:bg-red-700 text-white shadow shadow-red-600/20"
                 >
                   {resetBusy ? "Enviando..." : "Enviar instruções"}
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

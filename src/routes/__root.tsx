@@ -139,6 +139,33 @@ function RootComponent() {
   const routerState = useRouterState();
   const isNavigating = routerState.status === "pending";
 
+  useEffect(() => {
+    const handleFaviconUpdate = () => {
+      if (typeof window !== "undefined") {
+        const storedFavicon = localStorage.getItem("platform-favicon-url");
+        let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (!link) {
+          link = document.createElement("link");
+          link.rel = "icon";
+          document.getElementsByTagName("head")[0].appendChild(link);
+        }
+        if (storedFavicon) {
+          link.href = storedFavicon;
+        } else {
+          link.href = "/favicon.ico";
+        }
+      }
+    };
+
+    handleFaviconUpdate();
+
+    // Listen to storage events to dynamically change in real-time
+    window.addEventListener("storage", handleFaviconUpdate);
+    return () => {
+      window.removeEventListener("storage", handleFaviconUpdate);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

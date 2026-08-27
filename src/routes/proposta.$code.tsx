@@ -418,6 +418,7 @@ function ProposalView() {
         <ProposalDocument
           data={{
             code: data.proposal_code,
+            id: data.id,
             clientName: data.clients?.name ?? "",
             clientDocument: data.clients?.document,
             contactName: data.clients?.contact_name,
@@ -426,6 +427,7 @@ function ProposalView() {
             campaignName: (data as any).campaign_name,
             solutionName: (data as any).solution_name,
             objectiveText: (data as any).objective_text,
+            scopeText: (data as any).scope_text,
             fidelityPolicy: (data as any).fidelity_policy,
             nextStepsText: (data as any).next_steps_text,
             items: data.proposal_items.map((i) => ({
@@ -453,6 +455,18 @@ function ProposalView() {
             acceptedByIp: (data as any).accepted_by_ip,
             acceptedByUserAgent: (data as any).accepted_by_user_agent,
             acceptedSignatureUrl: (data as any).accepted_signature_url,
+            show_objective: (data as any).show_objective,
+            show_scope: (data as any).show_scope,
+            show_fidelity: (data as any).show_fidelity,
+            show_next_steps: (data as any).show_next_steps,
+            objective_title: (data as any).objective_title,
+            objective_subtitle: (data as any).objective_subtitle,
+            scope_title: (data as any).scope_title,
+            scope_subtitle: (data as any).scope_subtitle,
+            fidelity_title: (data as any).fidelity_title,
+            fidelity_subtitle: (data as any).fidelity_subtitle,
+            next_steps_title: (data as any).next_steps_title,
+            next_steps_subtitle: (data as any).next_steps_subtitle,
           }}
         />
       </div>

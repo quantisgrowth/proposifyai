@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardHeader,
@@ -1316,7 +1317,111 @@ function ActiveCompanyTab() {
     smtp_pass: "",
     smtp_from: "",
     smtp_from_name: "",
+    show_objective: true,
+    show_scope: true,
+    show_fidelity: true,
+    show_next_steps: true,
+    objective_title: "1. Objetivo e Proposta de Valor",
+    objective_subtitle: "",
+    scope_title: "2. Funcionalidades & Escopo da Solução",
+    scope_subtitle: "A contratação da plataforma engloba o acesso completo às seguintes ferramentas, sem qualquer restrição de recursos ou cobrança de licenças adicionais:",
+    fidelity_title: "Nossa Política de Fidelidade:",
+    fidelity_subtitle: "",
+    next_steps_title: "Próximos Passos para Ativação",
+    next_steps_subtitle: "",
   });
+
+  const { data: customBlocks, refetch: refetchBlocks } = useQuery({
+    queryKey: ["company_custom_blocks", company?.id],
+    enabled: Boolean(company?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposal_custom_blocks")
+        .select("*")
+        .eq("company_id", company!.id)
+        .is("proposal_id", null)
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [editingBlock, setEditingBlock] = useState<any | null>(null);
+  const [blockForm, setBlockForm] = useState({ title: "", subtitle: "", content: "" });
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+
+  const openBlockModal = (block?: any) => {
+    if (block) {
+      setEditingBlock(block);
+      setBlockForm({
+        title: block.title,
+        subtitle: block.subtitle || "",
+        content: block.content,
+      });
+    } else {
+      setEditingBlock(null);
+      setBlockForm({ title: "", subtitle: "", content: "" });
+    }
+    setBlockModalOpen(true);
+  };
+
+  const handleSaveBlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company) return;
+    if (!blockForm.title.trim() || !blockForm.content.trim()) {
+      toast.error("Preencha o título e o conteúdo do bloco.");
+      return;
+    }
+
+    try {
+      if (editingBlock) {
+        // Edit existing
+        const { error } = await supabase
+          .from("proposal_custom_blocks")
+          .update({
+            title: blockForm.title.trim(),
+            subtitle: blockForm.subtitle.trim() || null,
+            content: blockForm.content.trim(),
+          })
+          .eq("id", editingBlock.id);
+        if (error) throw error;
+        toast.success("Bloco atualizado!");
+      } else {
+        // Create new
+        const position = customBlocks ? customBlocks.length : 0;
+        const { error } = await supabase
+          .from("proposal_custom_blocks")
+          .insert({
+            company_id: company.id,
+            title: blockForm.title.trim(),
+            subtitle: blockForm.subtitle.trim() || null,
+            content: blockForm.content.trim(),
+            position,
+          });
+        if (error) throw error;
+        toast.success("Bloco adicionado!");
+      }
+      refetchBlocks();
+      setBlockModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao salvar bloco.");
+    }
+  };
+
+  const handleDeleteBlock = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este bloco?")) return;
+    try {
+      const { error } = await supabase
+        .from("proposal_custom_blocks")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Bloco removido!");
+      refetchBlocks();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao remover bloco.");
+    }
+  };
 
   useEffect(() => {
     if (company) {
@@ -1342,6 +1447,18 @@ function ActiveCompanyTab() {
         smtp_pass: company.smtp_pass || "",
         smtp_from: company.smtp_from || "",
         smtp_from_name: company.smtp_from_name || "",
+        show_objective: company.show_objective !== false,
+        show_scope: company.show_scope !== false,
+        show_fidelity: company.show_fidelity !== false,
+        show_next_steps: company.show_next_steps !== false,
+        objective_title: company.objective_title || "1. Objetivo e Proposta de Valor",
+        objective_subtitle: company.objective_subtitle || "",
+        scope_title: company.scope_title || "2. Funcionalidades & Escopo da Solução",
+        scope_subtitle: company.scope_subtitle || "A contratação da plataforma engloba o acesso completo às seguintes ferramentas, sem qualquer restrição de recursos ou cobrança de licenças adicionais:",
+        fidelity_title: company.fidelity_title || "Nossa Política de Fidelidade:",
+        fidelity_subtitle: company.fidelity_subtitle || "",
+        next_steps_title: company.next_steps_title || "Próximos Passos para Ativação",
+        next_steps_subtitle: company.next_steps_subtitle || "",
       });
     }
   }, [company]);
@@ -1392,6 +1509,18 @@ function ActiveCompanyTab() {
           smtp_pass: form.smtp_pass || null,
           smtp_from: form.smtp_from.trim() || null,
           smtp_from_name: form.smtp_from_name.trim() || null,
+          show_objective: form.show_objective,
+          show_scope: form.show_scope,
+          show_fidelity: form.show_fidelity,
+          show_next_steps: form.show_next_steps,
+          objective_title: form.objective_title.trim() || "1. Objetivo e Proposta de Valor",
+          objective_subtitle: form.objective_subtitle.trim() || null,
+          scope_title: form.scope_title.trim() || "2. Funcionalidades & Escopo da Solução",
+          scope_subtitle: form.scope_subtitle.trim() || null,
+          fidelity_title: form.fidelity_title.trim() || "Nossa Política de Fidelidade:",
+          fidelity_subtitle: form.fidelity_subtitle.trim() || null,
+          next_steps_title: form.next_steps_title.trim() || "Próximos Passos para Ativação",
+          next_steps_subtitle: form.next_steps_subtitle.trim() || null,
         })
         .eq("id", company.id);
 
@@ -1409,275 +1538,533 @@ function ActiveCompanyTab() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
-      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Building2 className="size-4 text-primary" />
-            Dados da Empresa
-          </CardTitle>
-          <CardDescription>
-            Informações básicas de cadastro e personalização de marca.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Razão Social / Nome</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: LB Tyres Ltda"
-                required
-              />
+    <div className="space-y-6 max-w-4xl pb-10">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Building2 className="size-4 text-primary" />
+              Dados da Empresa
+            </CardTitle>
+            <CardDescription>
+              Informações básicas de cadastro e personalização de marca.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Razão Social / Nome</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ex: LB Tyres Ltda"
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Slogan / Tagline</Label>
+                <Input
+                  value={form.tagline}
+                  onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                  placeholder="Ex: Tecnologia em Carga e Pneus"
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Slogan / Tagline</Label>
-              <Input
-                value={form.tagline}
-                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-                placeholder="Ex: Tecnologia em Carga e Pneus"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">CNPJ / CPF</Label>
-              <Input
-                value={form.document}
-                onChange={(e) => setForm({ ...form, document: formatDocument(e.target.value) })}
-                placeholder="00.000.000/0001-00"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">CNPJ / CPF</Label>
+                <Input
+                  value={form.document}
+                  onChange={(e) => setForm({ ...form, document: formatDocument(e.target.value) })}
+                  placeholder="00.000.000/0001-00"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">E-mail de Contato</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="comercial@empresa.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Telefone</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="(11) 4000-2200"
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">E-mail de Contato</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="comercial@empresa.com"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Telefone</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="(11) 4000-2200"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-border/40">
-            <div className="grid gap-1.5 col-span-2">
-              <Label className="text-xs font-semibold">Logotipo da Empresa</Label>
-              <div className="flex items-center gap-3">
-                {form.logo_url && (
-                  <div className="size-12 rounded border border-border bg-white p-1 flex items-center justify-center shrink-0">
-                    <img src={form.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-border/40">
+              <div className="grid gap-1.5 col-span-2">
+                <Label className="text-xs font-semibold">Logotipo da Empresa</Label>
+                <div className="flex items-center gap-3">
+                  {form.logo_url && (
+                    <div className="size-12 rounded border border-border bg-white p-1 flex items-center justify-center shrink-0">
+                      <img src={form.logo_url} alt="Logo" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="cursor-pointer text-xs h-9"
+                    />
                   </div>
-                )}
-                <div className="flex-1">
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Cor da Marca</Label>
+                <div className="flex items-center gap-2">
                   <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="cursor-pointer text-xs h-9"
+                    type="color"
+                    value={form.brand_color}
+                    onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                    className="w-12 h-9 p-0.5 border border-input cursor-pointer"
+                  />
+                  <Input
+                    value={form.brand_color}
+                    onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
+                    className="font-mono text-xs uppercase"
+                    maxLength={7}
                   />
                 </div>
               </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Cor da Marca</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="color"
-                  value={form.brand_color}
-                  onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
-                  className="w-12 h-9 p-0.5 border border-input cursor-pointer"
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <FileText className="size-4 text-primary" />
+              Proposta Base (Seções Modulares)
+            </CardTitle>
+            <CardDescription>
+              Ative ou desative cada seção padrão e customize os títulos e textos de introdução.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6 divide-y divide-border/40">
+            {/* Nome da Solução Comercial */}
+            <div className="grid gap-1.5 pb-4">
+              <Label className="text-xs font-semibold">Nome da Solução Comercial Padrão</Label>
+              <Input
+                value={form.solution_name}
+                onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
+                placeholder="Ex: Frotlog - Plataforma SaaS de Gestão de Frotas"
+              />
+            </div>
+
+            {/* Seção 1: Objetivo e Proposta de Valor */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    Seção 1: Objetivo e Proposta de Valor
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Exibe a apresentação geral e objetivos da solução.</p>
+                </div>
+                <Switch
+                  checked={form.show_objective}
+                  onCheckedChange={(checked) => setForm({ ...form, show_objective: checked })}
                 />
+              </div>
+
+              {form.show_objective && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={form.objective_title}
+                      onChange={(e) => setForm({ ...form, objective_title: e.target.value })}
+                      placeholder="Ex: 1. Objetivo e Proposta de Valor"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução (Opcional)</Label>
+                    <Input
+                      value={form.objective_subtitle}
+                      onChange={(e) => setForm({ ...form, objective_subtitle: e.target.value })}
+                      placeholder="Subtítulo ou parágrafo introdutório..."
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo Padrão</Label>
+                    <Textarea
+                      rows={3}
+                      value={form.objective_text}
+                      onChange={(e) => setForm({ ...form, objective_text: e.target.value })}
+                      placeholder="Descreva o propósito principal da sua solução..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seção 2: Funcionalidades e Escopo */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    Seção 2: Funcionalidades & Escopo
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Exibe a lista de funcionalidades ou serviços incluídos.</p>
+                </div>
+                <Switch
+                  checked={form.show_scope}
+                  onCheckedChange={(checked) => setForm({ ...form, show_scope: checked })}
+                />
+              </div>
+
+              {form.show_scope && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={form.scope_title}
+                      onChange={(e) => setForm({ ...form, scope_title: e.target.value })}
+                      placeholder="Ex: 2. Funcionalidades & Escopo da Solução"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução</Label>
+                    <Input
+                      value={form.scope_subtitle}
+                      onChange={(e) => setForm({ ...form, scope_subtitle: e.target.value })}
+                      placeholder="Ex: A contratação da plataforma engloba o acesso..."
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Funcionalidades (Uma por linha: Título: Descrição)</Label>
+                    <Textarea
+                      rows={4}
+                      value={form.scope_text}
+                      onChange={(e) => setForm({ ...form, scope_text: e.target.value })}
+                      placeholder="Ex: Módulo Financeiro: Gestão de contas..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seção 3: Política de Fidelidade */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    Seção 3: Política de Fidelidade
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Termos de permanência, carência ou rescisão contratual.</p>
+                </div>
+                <Switch
+                  checked={form.show_fidelity}
+                  onCheckedChange={(checked) => setForm({ ...form, show_fidelity: checked })}
+                />
+              </div>
+
+              {form.show_fidelity && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={form.fidelity_title}
+                      onChange={(e) => setForm({ ...form, fidelity_title: e.target.value })}
+                      placeholder="Ex: Nossa Política de Fidelidade:"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução (Opcional)</Label>
+                    <Input
+                      value={form.fidelity_subtitle}
+                      onChange={(e) => setForm({ ...form, fidelity_subtitle: e.target.value })}
+                      placeholder="Subtítulo ou parágrafo introdutório..."
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo Padrão</Label>
+                    <Textarea
+                      rows={2}
+                      value={form.fidelity_policy}
+                      onChange={(e) => setForm({ ...form, fidelity_policy: e.target.value })}
+                      placeholder="Descreva as condições de permanência ou rescisão..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Seção 4: Próximos Passos */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    Seção 4: Próximos Passos para Ativação
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Etapas numeradas após a assinatura da proposta.</p>
+                </div>
+                <Switch
+                  checked={form.show_next_steps}
+                  onCheckedChange={(checked) => setForm({ ...form, show_next_steps: checked })}
+                />
+              </div>
+
+              {form.show_next_steps && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={form.next_steps_title}
+                      onChange={(e) => setForm({ ...form, next_steps_title: e.target.value })}
+                      placeholder="Ex: Próximos Passos para Ativação"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução (Opcional)</Label>
+                    <Input
+                      value={form.next_steps_subtitle}
+                      onChange={(e) => setForm({ ...form, next_steps_subtitle: e.target.value })}
+                      placeholder="Subtítulo ou parágrafo introdutório..."
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Etapas (Uma por linha)</Label>
+                    <Textarea
+                      rows={3}
+                      value={form.next_steps_text}
+                      onChange={(e) => setForm({ ...form, next_steps_text: e.target.value })}
+                      placeholder="Ex: 1. Aceite digital...\n2. Configuração de conta..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Blocos Adicionais Customizados */}
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader className="pb-4 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Layers className="size-4 text-primary" />
+                Blocos Adicionais da Proposta (Customizados)
+              </CardTitle>
+              <CardDescription>
+                Adicione seções customizadas ilimitadas específicas para o seu modelo de proposta.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => openBlockModal()}
+              className="gap-1.5 font-semibold text-xs shrink-0 bg-transparent hover:bg-accent"
+            >
+              <Plus className="size-4" /> Novo Bloco
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {customBlocks && customBlocks.length > 0 ? (
+              <div className="grid gap-3">
+                {customBlocks.map((block: any, idx: number) => (
+                  <div key={block.id} className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-secondary/5">
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">{block.title}</h4>
+                      {block.subtitle && <p className="text-xs text-muted-foreground mt-0.5">{block.subtitle}</p>}
+                      <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-1 italic">{block.content}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-4">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => openBlockModal(block)}
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteBlock(block.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-6 border border-dashed border-border rounded-xl">
+                <p className="text-xs text-muted-foreground">Nenhum bloco adicional cadastrado.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <SlidersHorizontal className="size-4 text-primary" />
+              Preferências e Envio (SMTP)
+            </CardTitle>
+            <CardDescription>
+              Configure o servidor SMTP de envio de e-mails para propostas assinadas e rodapés oficiais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Validade Padrão das Propostas (dias)</Label>
                 <Input
-                  value={form.brand_color}
-                  onChange={(e) => setForm({ ...form, brand_color: e.target.value })}
-                  className="font-mono text-xs uppercase"
-                  maxLength={7}
+                  type="number"
+                  value={form.default_validity_days}
+                  onChange={(e) => setForm({ ...form, default_validity_days: parseInt(e.target.value) || 15 })}
+                  placeholder="Ex: 15"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Forma de Pagamento Padrão</Label>
+                <Input
+                  value={form.default_payment_terms}
+                  onChange={(e) => setForm({ ...form, default_payment_terms: e.target.value })}
+                  placeholder="Ex: Pix ou Boleto Bancário"
                 />
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <FileText className="size-4 text-primary" />
-            Proposta Base (Template Padrão)
-          </CardTitle>
-          <CardDescription>
-            Defina os textos padrão que serão sugeridos para novas propostas comerciais.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Nome da Solução Comercial</Label>
-            <Input
-              value={form.solution_name}
-              onChange={(e) => setForm({ ...form, solution_name: e.target.value })}
-              placeholder="Ex: Frotlog - Plataforma SaaS de Gestão de Frotas"
-            />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Objetivo e Proposta de Valor</Label>
-            <Textarea
-              rows={3}
-              value={form.objective_text}
-              onChange={(e) => setForm({ ...form, objective_text: e.target.value })}
-              placeholder="Descreva o propósito principal da sua solução..."
-            />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Funcionalidades e Escopo (Uma por linha: Título: Descrição)</Label>
-            <Textarea
-              rows={4}
-              value={form.scope_text}
-              onChange={(e) => setForm({ ...form, scope_text: e.target.value })}
-              placeholder="Ex: Módulo Financeiro: Gestão de contas..."
-            />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Política de Fidelidade</Label>
-            <Textarea
-              rows={2}
-              value={form.fidelity_policy}
-              onChange={(e) => setForm({ ...form, fidelity_policy: e.target.value })}
-              placeholder="Descreva as condições de permanência ou rescisão..."
-            />
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Próximos Passos (Um por linha)</Label>
-            <Textarea
-              rows={4}
-              value={form.next_steps_text}
-              onChange={(e) => setForm({ ...form, next_steps_text: e.target.value })}
-              placeholder="Ex: 1. Aceite digital...\n2. Configuração de conta..."
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <SlidersHorizontal className="size-4 text-primary" />
-            Preferências e Envio (SMTP)
-          </CardTitle>
-          <CardDescription>
-            Configure o servidor SMTP de envio de e-mails para propostas assinadas e rodapés oficiais.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Validade Padrão das Propostas (dias)</Label>
+              <Label className="text-xs font-semibold">Texto do Rodapé do PDF</Label>
               <Input
-                type="number"
-                value={form.default_validity_days}
-                onChange={(e) => setForm({ ...form, default_validity_days: parseInt(e.target.value) || 15 })}
-                placeholder="Ex: 15"
+                value={form.footer_text}
+                onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
+                placeholder="Ex: © 2026 Minha Empresa - CNPJ 00.000.000/0001-00"
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Forma de Pagamento Padrão</Label>
-              <Input
-                value={form.default_payment_terms}
-                onChange={(e) => setForm({ ...form, default_payment_terms: e.target.value })}
-                placeholder="Ex: Pix ou Boleto Bancário"
-              />
+
+            <div className="pt-2 border-t border-border/40 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid gap-1.5 col-span-2">
+                <Label className="text-xs font-semibold">Servidor SMTP Host</Label>
+                <Input
+                  value={form.smtp_host}
+                  onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
+                  placeholder="smtp.zoho.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Porta SMTP</Label>
+                <Input
+                  type="number"
+                  value={form.smtp_port}
+                  onChange={(e) => setForm({ ...form, smtp_port: parseInt(e.target.value) || 587 })}
+                  placeholder="587"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="grid gap-1.5">
-            <Label className="text-xs font-semibold">Texto do Rodapé do PDF</Label>
-            <Input
-              value={form.footer_text}
-              onChange={(e) => setForm({ ...form, footer_text: e.target.value })}
-              placeholder="Ex: © 2026 Minha Empresa - CNPJ 00.000.000/0001-00"
-            />
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Usuário SMTP</Label>
+                <Input
+                  value={form.smtp_user}
+                  onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
+                  placeholder="usuario@empresa.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Senha SMTP</Label>
+                <Input
+                  type="password"
+                  value={form.smtp_pass}
+                  onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
+                  placeholder="••••••••••••"
+                />
+              </div>
+            </div>
 
-          <div className="pt-2 border-t border-border/40 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="grid gap-1.5 col-span-2">
-              <Label className="text-xs font-semibold">Servidor SMTP Host</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">E-mail Remetente</Label>
+                <Input
+                  type="email"
+                  value={form.smtp_from}
+                  onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
+                  placeholder="envios@empresa.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Nome do Remetente</Label>
+                <Input
+                  value={form.smtp_from_name}
+                  onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
+                  placeholder="Ex: Comercial LB Tyres"
+                />
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="border-t border-border/40 pt-4 flex justify-end">
+            <Button type="submit" disabled={busy} className="font-semibold px-6">
+              {busy ? "Salvando..." : "Salvar Configurações"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+
+      {/* Dialog para Criar/Editar Bloco Customizado */}
+      <Dialog open={blockModalOpen} onOpenChange={setBlockModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingBlock ? "Editar Bloco Customizado" : "Adicionar Bloco Customizado"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveBlock} className="space-y-4 pt-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Título do Bloco</Label>
               <Input
-                value={form.smtp_host}
-                onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
-                placeholder="smtp.zoho.com"
+                value={blockForm.title}
+                onChange={(e) => setBlockForm({ ...blockForm, title: e.target.value })}
+                placeholder="Ex: Condições de Entrega & Frete"
+                required
               />
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Porta SMTP</Label>
+              <Label className="text-xs font-semibold">Subtítulo / Frase de Introdução (Opcional)</Label>
               <Input
-                type="number"
-                value={form.smtp_port}
-                onChange={(e) => setForm({ ...form, smtp_port: parseInt(e.target.value) || 587 })}
-                placeholder="587"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Usuário SMTP</Label>
-              <Input
-                value={form.smtp_user}
-                onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
-                placeholder="usuario@empresa.com"
+                value={blockForm.subtitle}
+                onChange={(e) => setBlockForm({ ...blockForm, subtitle: e.target.value })}
+                placeholder="Ex: Os prazos e termos abaixo são aplicáveis a todo o território nacional..."
               />
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Senha SMTP</Label>
-              <Input
-                type="password"
-                value={form.smtp_pass}
-                onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
-                placeholder="••••••••••••"
+              <Label className="text-xs font-semibold">Conteúdo do Bloco</Label>
+              <Textarea
+                rows={5}
+                value={blockForm.content}
+                onChange={(e) => setBlockForm({ ...blockForm, content: e.target.value })}
+                placeholder="Insira o texto completo do bloco..."
+                required
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">E-mail Remetente</Label>
-              <Input
-                type="email"
-                value={form.smtp_from}
-                onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
-                placeholder="envios@empresa.com"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs font-semibold">Nome do Remetente</Label>
-              <Input
-                value={form.smtp_from_name}
-                onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
-                placeholder="Ex: Comercial LB Tyres"
-              />
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="border-t border-border/40 pt-4 flex justify-end">
-          <Button type="submit" disabled={busy} className="font-semibold px-6">
-            {busy ? "Salvando..." : "Salvar Configurações"}
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setBlockModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingBlock ? "Salvar Alterações" : "Adicionar Bloco"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

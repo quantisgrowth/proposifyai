@@ -46,6 +46,18 @@ export type Company = {
   smtp_pass?: string | null;
   smtp_from?: string | null;
   smtp_from_name?: string | null;
+  show_objective?: boolean;
+  show_scope?: boolean;
+  show_fidelity?: boolean;
+  show_next_steps?: boolean;
+  objective_title?: string | null;
+  objective_subtitle?: string | null;
+  scope_title?: string | null;
+  scope_subtitle?: string | null;
+  fidelity_title?: string | null;
+  fidelity_subtitle?: string | null;
+  next_steps_title?: string | null;
+  next_steps_subtitle?: string | null;
 };
 
 export type Profile = {
@@ -134,6 +146,18 @@ export type Proposal = {
   created_at: string;
   loss_reason?: string | null;
   loss_description?: string | null;
+  show_objective?: boolean;
+  show_scope?: boolean;
+  show_fidelity?: boolean;
+  show_next_steps?: boolean;
+  objective_title?: string | null;
+  objective_subtitle?: string | null;
+  scope_title?: string | null;
+  scope_subtitle?: string | null;
+  fidelity_title?: string | null;
+  fidelity_subtitle?: string | null;
+  next_steps_title?: string | null;
+  next_steps_subtitle?: string | null;
 };
 
 export type ProposalItem = {

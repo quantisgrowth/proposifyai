@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { ProposalDocument, type DocItem } from "@/components/proposal-document";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -201,6 +202,109 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
   const [fidelityPolicy, setFidelityPolicy] = useState("");
   const [nextStepsText, setNextStepsText] = useState("");
 
+  const [showObjective, setShowObjective] = useState(true);
+  const [showScope, setShowScope] = useState(true);
+  const [showFidelity, setShowFidelity] = useState(true);
+  const [showNextSteps, setShowNextSteps] = useState(true);
+  const [objectiveTitle, setObjectiveTitle] = useState("1. Objetivo e Proposta de Valor");
+  const [objectiveSubtitle, setObjectiveSubtitle] = useState("");
+  const [scopeTitle, setScopeTitle] = useState("2. Funcionalidades & Escopo da Solução");
+  const [scopeSubtitle, setScopeSubtitle] = useState("");
+  const [fidelityTitle, setFidelityTitle] = useState("Nossa Política de Fidelidade:");
+  const [fidelitySubtitle, setFidelitySubtitle] = useState("");
+  const [nextStepsTitle, setNextStepsTitle] = useState("Próximos Passos para Ativação");
+  const [nextStepsSubtitle, setNextStepsSubtitle] = useState("");
+
+  const [customBlocks, setCustomBlocks] = useState<any[]>([]);
+  const [editingBlock, setEditingBlock] = useState<any | null>(null);
+  const [blockForm, setBlockForm] = useState({ title: "", subtitle: "", content: "" });
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+
+  const openBlockModal = (block?: any, idx?: number) => {
+    if (block) {
+      setEditingBlock({ ...block, index: idx });
+      setBlockForm({
+        title: block.title,
+        subtitle: block.subtitle || "",
+        content: block.content,
+      });
+    } else {
+      setEditingBlock(null);
+      setBlockForm({ title: "", subtitle: "", content: "" });
+    }
+    setBlockModalOpen(true);
+  };
+
+  const handleSaveBlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockForm.title.trim() || !blockForm.content.trim()) {
+      toast.error("Preencha o título e o conteúdo do bloco.");
+      return;
+    }
+
+    if (editingBlock && editingBlock.index !== undefined) {
+      // Edit existing local block
+      setCustomBlocks((prev) =>
+        prev.map((b, i) =>
+          i === editingBlock.index
+            ? { ...b, title: blockForm.title.trim(), subtitle: blockForm.subtitle.trim() || null, content: blockForm.content.trim() }
+            : b
+        )
+      );
+      toast.success("Bloco atualizado!");
+    } else {
+      // Add new local block
+      setCustomBlocks((prev) => [
+        ...prev,
+        {
+          title: blockForm.title.trim(),
+          subtitle: blockForm.subtitle.trim() || null,
+          content: blockForm.content.trim(),
+          position: prev.length,
+        },
+      ]);
+      toast.success("Bloco adicionado!");
+    }
+    setBlockModalOpen(false);
+  };
+
+  const handleDeleteBlock = (idx: number) => {
+    if (!confirm("Tem certeza que deseja excluir este bloco?")) return;
+    setCustomBlocks((prev) => prev.filter((_, i) => i !== idx).map((b, i) => ({ ...b, position: i })));
+    toast.success("Bloco removido!");
+  };
+
+  useEffect(() => {
+    const loadBlocks = async () => {
+      if (editing?.id) {
+        const { data, error } = await supabase
+          .from("proposal_custom_blocks")
+          .select("*")
+          .eq("proposal_id", editing.id)
+          .order("position", { ascending: true });
+        if (!error && data) {
+          setCustomBlocks(data);
+        }
+      } else if (activeCompany?.id) {
+        const { data, error } = await supabase
+          .from("proposal_custom_blocks")
+          .select("*")
+          .eq("company_id", activeCompany.id)
+          .is("proposal_id", null)
+          .order("position", { ascending: true });
+        if (!error && data) {
+          setCustomBlocks(data.map(b => ({
+            title: b.title,
+            subtitle: b.subtitle,
+            content: b.content,
+            position: b.position
+          })));
+        }
+      }
+    };
+    loadBlocks();
+  }, [editing, activeCompany]);
+
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
   const [discountMode, setDiscountMode] = useState<"percent" | "fixed">("percent");
   const [discountValue, setDiscountValue] = useState(0);
@@ -221,6 +325,20 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       if (activeCompany.fidelity_policy) setFidelityPolicy(activeCompany.fidelity_policy);
       if (activeCompany.next_steps_text) setNextStepsText(activeCompany.next_steps_text);
       if (activeCompany.default_payment_terms) setPaymentTerms(activeCompany.default_payment_terms);
+      
+      setShowObjective(activeCompany.show_objective !== false);
+      setShowScope(activeCompany.show_scope !== false);
+      setShowFidelity(activeCompany.show_fidelity !== false);
+      setShowNextSteps(activeCompany.show_next_steps !== false);
+      
+      setObjectiveTitle(activeCompany.objective_title || "1. Objetivo e Proposta de Valor");
+      setObjectiveSubtitle(activeCompany.objective_subtitle || "");
+      setScopeTitle(activeCompany.scope_title || "2. Funcionalidades & Escopo da Solução");
+      setScopeSubtitle(activeCompany.scope_subtitle || "");
+      setFidelityTitle(activeCompany.fidelity_title || "Nossa Política de Fidelidade:");
+      setFidelitySubtitle(activeCompany.fidelity_subtitle || "");
+      setNextStepsTitle(activeCompany.next_steps_title || "Próximos Passos para Ativação");
+      setNextStepsSubtitle(activeCompany.next_steps_subtitle || "");
     }
   }, [activeCompany, editing]);
 
@@ -234,6 +352,21 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
     setScopeText(editing.scope_text || "");
     setFidelityPolicy(editing.fidelity_policy || "");
     setNextStepsText(editing.next_steps_text || "");
+
+    setShowObjective((editing as any).show_objective !== false);
+    setShowScope((editing as any).show_scope !== false);
+    setShowFidelity((editing as any).show_fidelity !== false);
+    setShowNextSteps((editing as any).show_next_steps !== false);
+
+    setObjectiveTitle((editing as any).objective_title || activeCompany?.objective_title || "1. Objetivo e Proposta de Valor");
+    setObjectiveSubtitle((editing as any).objective_subtitle || activeCompany?.objective_subtitle || "");
+    setScopeTitle((editing as any).scope_title || activeCompany?.scope_title || "2. Funcionalidades & Escopo da Solução");
+    setScopeSubtitle((editing as any).scope_subtitle || activeCompany?.scope_subtitle || "");
+    setFidelityTitle((editing as any).fidelity_title || activeCompany?.fidelity_title || "Nossa Política de Fidelidade:");
+    setFidelitySubtitle((editing as any).fidelity_subtitle || activeCompany?.fidelity_subtitle || "");
+    setNextStepsTitle((editing as any).next_steps_title || activeCompany?.next_steps_title || "Próximos Passos para Ativação");
+    setNextStepsSubtitle((editing as any).next_steps_subtitle || activeCompany?.next_steps_subtitle || "");
+
     setItems(
       editing.proposal_items.map((i) => ({
         key: i.id,
@@ -431,19 +564,19 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         toast.error("O campo 'Solução' é obrigatório para esta empresa.");
         return null;
       }
-      if (!objectiveText.trim()) {
+      if (showObjective && !objectiveText.trim()) {
         toast.error("O campo 'Objetivo' é obrigatório para esta empresa.");
         return null;
       }
-      if (!scopeText.trim()) {
+      if (showScope && !scopeText.trim()) {
         toast.error("O campo 'Funcionalidades e Escopo' é obrigatório para esta empresa.");
         return null;
       }
-      if (!fidelityPolicy.trim()) {
+      if (showFidelity && !fidelityPolicy.trim()) {
         toast.error("O campo 'Fidelidade' é obrigatório para esta empresa.");
         return null;
       }
-      if (!nextStepsText.trim()) {
+      if (showNextSteps && !nextStepsText.trim()) {
         toast.error("O campo 'Próximos Passos' é obrigatório para esta empresa.");
         return null;
       }
@@ -478,6 +611,18 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         notes: notes || null,
         status,
         ...(status === "sent" ? { sent_at: new Date().toISOString() } : {}),
+        show_objective: showObjective,
+        show_scope: showScope,
+        show_fidelity: showFidelity,
+        show_next_steps: showNextSteps,
+        objective_title: objectiveTitle.trim() || null,
+        objective_subtitle: objectiveSubtitle.trim() || null,
+        scope_title: scopeTitle.trim() || null,
+        scope_subtitle: scopeSubtitle.trim() || null,
+        fidelity_title: fidelityTitle.trim() || null,
+        fidelity_subtitle: fidelitySubtitle.trim() || null,
+        next_steps_title: nextStepsTitle.trim() || null,
+        next_steps_subtitle: nextStepsSubtitle.trim() || null,
       };
 
       let proposalId = editing?.id;
@@ -532,6 +677,30 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
 
       const { error: itemsError } = await supabase.from("proposal_items").insert(rows);
       if (itemsError) throw itemsError;
+
+      // Save custom blocks
+      if (proposalId) {
+        const { error: deleteBlocksError } = await supabase
+          .from("proposal_custom_blocks")
+          .delete()
+          .eq("proposal_id", proposalId);
+        if (deleteBlocksError) throw deleteBlocksError;
+
+        if (customBlocks.length > 0) {
+          const insertRows = customBlocks.map((b, idx) => ({
+            company_id: activeCompanyId,
+            proposal_id: proposalId,
+            title: b.title,
+            subtitle: b.subtitle || null,
+            content: b.content,
+            position: idx,
+          }));
+          const { error: insertBlocksError } = await supabase
+            .from("proposal_custom_blocks")
+            .insert(insertRows);
+          if (insertBlocksError) throw insertBlocksError;
+        }
+      }
 
       await qc.invalidateQueries({ queryKey: ["proposals"] });
       
@@ -1189,53 +1358,234 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
 
       {/* PASSO 4: TEXTOS DA PROPOSTA */}
       {isGestorOrAdmin && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              4
-            </span>
-            <h2 className="text-lg font-semibold">Textos da Proposta</h2>
+        <section className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                4
+              </span>
+              <h2 className="text-lg font-semibold">Textos & Seções da Proposta</h2>
+            </div>
           </div>
 
-          <div className="grid gap-4 rounded-xl border border-border bg-card p-5 shadow-sm sm:grid-cols-2">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Objetivo e Proposta de Valor</Label>
-              <Textarea
-                rows={3}
-                value={objectiveText}
-                onChange={(e) => setObjectiveText(e.target.value)}
-                placeholder="Ex: A presente proposta tem como objetivo apresentar as condições comerciais..."
-              />
+          <div className="space-y-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+            {/* Seção 1: Objetivo */}
+            <div className="space-y-4 pb-4 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Objetivo e Proposta de Valor</Label>
+                  <p className="text-xs text-muted-foreground">Exibe a apresentação geral e objetivos da solução.</p>
+                </div>
+                <Switch
+                  checked={showObjective}
+                  onCheckedChange={setShowObjective}
+                />
+              </div>
+
+              {showObjective && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={objectiveTitle}
+                      onChange={(e) => setObjectiveTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução</Label>
+                    <Input
+                      value={objectiveSubtitle}
+                      onChange={(e) => setObjectiveSubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo</Label>
+                    <Textarea
+                      rows={3}
+                      value={objectiveText}
+                      onChange={(e) => setObjectiveText(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Funcionalidades e Escopo (Uma por linha no formato: Título: Descrição)</Label>
-              <Textarea
-                rows={4}
-                value={scopeText}
-                onChange={(e) => setScopeText(e.target.value)}
-                placeholder={`Aplicativo para Motoristas & Gestores: Registro imediato de operações...\nPainel de Gestão: Acompanhamento em tempo real...`}
-              />
+            {/* Seção 2: Funcionalidades */}
+            <div className="space-y-4 pb-4 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Funcionalidades & Escopo</Label>
+                  <p className="text-xs text-muted-foreground">Exibe a lista de funcionalidades ou serviços incluídos.</p>
+                </div>
+                <Switch
+                  checked={showScope}
+                  onCheckedChange={setShowScope}
+                />
+              </div>
+
+              {showScope && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={scopeTitle}
+                      onChange={(e) => setScopeTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução</Label>
+                    <Input
+                      value={scopeSubtitle}
+                      onChange={(e) => setScopeSubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo (Uma por linha: Título: Descrição)</Label>
+                    <Textarea
+                      rows={4}
+                      value={scopeText}
+                      onChange={(e) => setScopeText(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Política de Fidelidade</Label>
-              <Textarea
-                rows={2}
-                value={fidelityPolicy}
-                onChange={(e) => setFidelityPolicy(e.target.value)}
-                placeholder="Ex: A nossa única fidelidade é a sua satisfação..."
-              />
+            {/* Seção 3: Fidelidade */}
+            <div className="space-y-4 pb-4 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Política de Fidelidade</Label>
+                  <p className="text-xs text-muted-foreground">Termos de permanência, carência ou rescisão contratual.</p>
+                </div>
+                <Switch
+                  checked={showFidelity}
+                  onCheckedChange={setShowFidelity}
+                />
+              </div>
+
+              {showFidelity && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={fidelityTitle}
+                      onChange={(e) => setFidelityTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução</Label>
+                    <Input
+                      value={fidelitySubtitle}
+                      onChange={(e) => setFidelitySubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo</Label>
+                    <Textarea
+                      rows={2}
+                      value={fidelityPolicy}
+                      onChange={(e) => setFidelityPolicy(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label className="text-xs text-muted-foreground">Próximos Passos (Um por linha)</Label>
-              <Textarea
-                rows={3}
-                value={nextStepsText}
-                onChange={(e) => setNextStepsText(e.target.value)}
-                placeholder="Ex: 1. Validação e aceite...\n2. Reunião de alinhamento..."
-              />
+            {/* Seção 4: Próximos Passos */}
+            <div className="space-y-4 pb-4 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold">Próximos Passos para Ativação</Label>
+                  <p className="text-xs text-muted-foreground">Etapas numeradas após a assinatura da proposta.</p>
+                </div>
+                <Switch
+                  checked={showNextSteps}
+                  onCheckedChange={setShowNextSteps}
+                />
+              </div>
+
+              {showNextSteps && (
+                <div className="space-y-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Título da Seção</Label>
+                    <Input
+                      value={nextStepsTitle}
+                      onChange={(e) => setNextStepsTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Subtítulo / Introdução</Label>
+                    <Input
+                      value={nextStepsSubtitle}
+                      onChange={(e) => setNextStepsSubtitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-xs font-semibold">Conteúdo (Uma por linha)</Label>
+                    <Textarea
+                      rows={3}
+                      value={nextStepsText}
+                      onChange={(e) => setNextStepsText(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Blocos Adicionais Customizados Específicos da Proposta */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-semibold flex items-center gap-1.5">
+                    <Layers className="size-4 text-primary" /> Blocos Adicionais Customizados
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Inclua novos blocos exclusivos para esta proposta.</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openBlockModal()}
+                  className="gap-1.5 font-semibold text-xs bg-transparent hover:bg-accent"
+                >
+                  <Plus className="size-3.5" /> Novo Bloco
+                </Button>
+              </div>
+
+              {customBlocks && customBlocks.length > 0 ? (
+                <div className="grid gap-3 pt-2 pl-4 border-l-2 border-primary/20">
+                  {customBlocks.map((block: any, idx: number) => (
+                    <div key={block.id || idx} className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/5">
+                      <div>
+                        <h4 className="text-xs font-bold text-foreground">{block.title}</h4>
+                        {block.subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{block.subtitle}</p>}
+                        <p className="text-[10px] text-muted-foreground/80 mt-1 line-clamp-1 italic">{block.content}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={() => openBlockModal(block, idx)}
+                        >
+                          <Edit2 className="size-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteBlock(idx)}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1297,6 +1647,19 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
         paymentTerms,
         notes,
         company: activeCompany,
+        show_objective: showObjective,
+        show_scope: showScope,
+        show_fidelity: showFidelity,
+        show_next_steps: showNextSteps,
+        objective_title: objectiveTitle,
+        objective_subtitle: objectiveSubtitle,
+        scope_title: scopeTitle,
+        scope_subtitle: scopeSubtitle,
+        fidelity_title: fidelityTitle,
+        fidelity_subtitle: fidelitySubtitle,
+        next_steps_title: nextStepsTitle,
+        next_steps_subtitle: nextStepsSubtitle,
+        custom_blocks: customBlocks,
       }}
     />
   );
@@ -1365,6 +1728,54 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Criar/Editar Bloco Customizado Local */}
+      <Dialog open={blockModalOpen} onOpenChange={setBlockModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingBlock ? "Editar Bloco Customizado" : "Adicionar Bloco Customizado"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveBlock} className="space-y-4 pt-2">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Título do Bloco</Label>
+              <Input
+                value={blockForm.title}
+                onChange={(e) => setBlockForm({ ...blockForm, title: e.target.value })}
+                placeholder="Ex: Condições de Entrega & Frete"
+                required
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Subtítulo / Frase de Introdução (Opcional)</Label>
+              <Input
+                value={blockForm.subtitle}
+                onChange={(e) => setBlockForm({ ...blockForm, subtitle: e.target.value })}
+                placeholder="Ex: Prazos e termos de frete aplicáveis..."
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Conteúdo do Bloco</Label>
+              <Textarea
+                rows={5}
+                value={blockForm.content}
+                onChange={(e) => setBlockForm({ ...blockForm, content: e.target.value })}
+                placeholder="Insira o texto completo do bloco..."
+                required
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setBlockModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingBlock ? "Salvar Alterações" : "Adicionar Bloco"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

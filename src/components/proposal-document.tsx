@@ -8,6 +8,7 @@ import {
 } from "@/lib/proposals";
 import { brl, longDate, pricingLabel } from "@/lib/format";
 import { CheckCircle, ShieldCheck, BarChart3 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type DocItem = {
   title: string;
@@ -38,6 +39,7 @@ export type DocItem = {
 };
 
 export type DocData = {
+  id?: string;
   code: string;
   clientName: string;
   clientDocument?: string | null | undefined;
@@ -66,6 +68,19 @@ export type DocData = {
   acceptedByIp?: string | null | undefined;
   acceptedByUserAgent?: string | null | undefined;
   acceptedSignatureUrl?: string | null | undefined;
+  show_objective?: boolean;
+  show_scope?: boolean;
+  show_fidelity?: boolean;
+  show_next_steps?: boolean;
+  objective_title?: string | null;
+  objective_subtitle?: string | null;
+  scope_title?: string | null;
+  scope_subtitle?: string | null;
+  fidelity_title?: string | null;
+  fidelity_subtitle?: string | null;
+  next_steps_title?: string | null;
+  next_steps_subtitle?: string | null;
+  custom_blocks?: any[] | null;
 };
 
 export function ProposalDocument({ data }: { data: DocData }) {
@@ -85,6 +100,39 @@ export function ProposalDocument({ data }: { data: DocData }) {
 
   const campaignName = data.campaignName || "Condições Exclusivas";
   const brandColor = company?.brand_color || "#0f172a";
+
+  const showObjective = data.show_objective ?? company?.show_objective ?? true;
+  const showScope = data.show_scope ?? company?.show_scope ?? true;
+  const showFidelity = data.show_fidelity ?? company?.show_fidelity ?? true;
+  const showNextSteps = data.show_next_steps ?? company?.show_next_steps ?? true;
+
+  const objectiveTitle = data.objective_title || company?.objective_title || "1. Objetivo e Proposta de Valor";
+  const objectiveSubtitle = data.objective_subtitle || company?.objective_subtitle || "";
+
+  const scopeTitle = data.scope_title || company?.scope_title || "2. Funcionalidades & Escopo da Solução";
+  const scopeSubtitle = data.scope_subtitle || company?.scope_subtitle || "A contratação da plataforma engloba o acesso completo às seguintes ferramentas, sem qualquer restrição de recursos ou cobrança de licenças adicionais:";
+
+  const fidelityTitle = data.fidelity_title || company?.fidelity_title || "Nossa Política de Fidelidade:";
+  const fidelitySubtitle = data.fidelity_subtitle || company?.fidelity_subtitle || "";
+
+  const nextStepsTitle = data.next_steps_title || company?.next_steps_title || "Próximos Passos para Ativação";
+  const nextStepsSubtitle = data.next_steps_subtitle || company?.next_steps_subtitle || "";
+
+  const { data: dbCustomBlocks } = useQuery({
+    queryKey: ["proposal_custom_blocks", data.id],
+    enabled: Boolean(data.id && !data.custom_blocks),
+    queryFn: async () => {
+      const { data: blocks, error } = await supabase
+        .from("proposal_custom_blocks")
+        .select("*")
+        .eq("proposal_id", data.id!)
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return blocks;
+    },
+  });
+
+  const customBlocks = data.custom_blocks ?? dbCustomBlocks ?? [];
 
   const objectiveText =
     data.objectiveText ||
@@ -149,6 +197,11 @@ export function ProposalDocument({ data }: { data: DocData }) {
     company?.fidelity_policy ||
     `A ${companyName} não impõe cláusulas de fidelidade contratual ou carência de permanência mínima. A nossa única fidelidade é a sua satisfação com a nossa ferramenta. O cliente mantém a parceria ativa enquanto a solução faz sentido e gera economia real para a operação.`;
 
+  let sectionIndex = 1;
+  const getSectionNumber = () => {
+    return `${sectionIndex++}.`;
+  };
+
   return (
     <article className="print-sheet mx-auto w-full max-w-3xl border border-border/80 bg-white text-slate-900 p-8 sm:p-14 shadow-xl rounded-xl space-y-10 font-sans">
       {/* 1. CABEÇALHO COM LOGO CENTRALIZADO */}
@@ -200,45 +253,51 @@ export function ProposalDocument({ data }: { data: DocData }) {
       </section>
 
       {/* 3. SEÇÃO 1: OBJETIVO E PROPOSTA DE VALOR */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-          1. Objetivo e Proposta de Valor
-        </h2>
-        <p className="text-sm leading-relaxed text-slate-700 text-justify whitespace-pre-line">
-          {objectiveText}
-        </p>
-      </section>
+      {showObjective && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold flex flex-col gap-0.5" style={{ color: brandColor }}>
+            <span className="flex items-center gap-2">{getSectionNumber()} {objectiveTitle}</span>
+            {objectiveSubtitle && (
+              <span className="text-xs font-normal text-slate-500 italic block">{objectiveSubtitle}</span>
+            )}
+          </h2>
+          <p className="text-sm leading-relaxed text-slate-700 text-justify whitespace-pre-line">
+            {objectiveText}
+          </p>
+        </section>
+      )}
 
       {/* 4. SEÇÃO 2: FUNCIONALIDADES & ESCOPO DA SOLUÇÃO */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-          2. Funcionalidades & Escopo da Solução
-        </h2>
-        <p className="text-sm text-slate-700">
-          A contratação da plataforma engloba o acesso completo às seguintes ferramentas, sem
-          qualquer restrição de recursos ou cobrança de licenças adicionais:
-        </p>
+      {showScope && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-bold flex flex-col gap-0.5" style={{ color: brandColor }}>
+            <span className="flex items-center gap-2">{getSectionNumber()} {scopeTitle}</span>
+            {scopeSubtitle && (
+              <span className="text-xs font-normal text-slate-500 italic block">{scopeSubtitle}</span>
+            )}
+          </h2>
 
-        <div className="grid gap-3 pt-1">
-          {parsedScopeItems.map((item, idx) => (
-            <div key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
-              <CheckCircle className="size-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                {item.title ? (
-                  <strong className="text-slate-900 font-semibold">{item.title}: </strong>
-                ) : null}
-                <span>{item.desc}</span>
+          <div className="grid gap-3 pt-1">
+            {parsedScopeItems.map((item, idx) => (
+              <div key={idx} className="flex items-start gap-2.5 text-sm text-slate-700">
+                <CheckCircle className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  {item.title ? (
+                    <strong className="text-slate-900 font-semibold">{item.title}: </strong>
+                  ) : null}
+                  <span>{item.desc}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 5. SEÇÃO 3: TABELA DE PRECIFICAÇÃO POR PERFORMANCE / FAIXAS DE VOLUME (SE HOUVER) */}
       {itemsWithTiers.length > 0 && (
         <section className="space-y-4 pt-4 border-t border-slate-200">
           <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-            <BarChart3 className="size-5 shrink-0" style={{ color: brandColor }} /> 3. Modelo de Precificação por Performance (Padrão)
+            <BarChart3 className="size-5 shrink-0" style={{ color: brandColor }} /> {getSectionNumber()} Modelo de Precificação por Performance (Padrão)
           </h2>
           <p className="text-sm text-slate-700">
             A monetização do sistema dar-se-á por meio de performance transacional. A tabela é
@@ -282,7 +341,7 @@ export function ProposalDocument({ data }: { data: DocData }) {
       {/* 6. SEÇÃO 4: CONDIÇÕES COMERCIAIS ESPECIAIS (TABELA DE ITENS) */}
       <section className="space-y-4 pt-4 border-t border-slate-200">
         <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-          {itemsWithTiers.length > 0 ? "4." : "3."} Condições Comerciais Especiais ({campaignName})
+          {getSectionNumber()} Condições Comerciais Especiais ({campaignName})
         </h2>
         <p className="text-sm text-slate-700">
           Como benefício por nossa parceria durante a campanha <strong>{campaignName}</strong>,
@@ -418,33 +477,60 @@ export function ProposalDocument({ data }: { data: DocData }) {
         </div>
 
         {/* Política de Fidelidade */}
-        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1.5">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-            <ShieldCheck className="size-4 shrink-0" style={{ color: brandColor }} /> Nossa Política de Fidelidade:
-          </p>
-          <p className="text-xs text-slate-700 leading-relaxed">{fidelityText}</p>
-        </div>
+        {showFidelity && (
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-1.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-900 flex flex-col gap-0.5">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="size-4 shrink-0" style={{ color: brandColor }} /> {fidelityTitle}
+              </span>
+              {fidelitySubtitle && (
+                <span className="text-[10px] font-normal text-slate-500 italic block ml-5.5">{fidelitySubtitle}</span>
+              )}
+            </p>
+            <p className="text-xs text-slate-700 leading-relaxed">{fidelityText}</p>
+          </div>
+        )}
       </section>
 
+      {/* Blocos Customizados Adicionais por Empresa */}
+      {customBlocks && customBlocks.map((block: any, idx: number) => (
+        <section key={block.id || idx} className="space-y-3 pt-4 border-t border-slate-200">
+          <h2 className="text-lg font-bold flex flex-col gap-0.5" style={{ color: brandColor }}>
+            <span className="flex items-center gap-2">{getSectionNumber()} {block.title}</span>
+            {block.subtitle && (
+              <span className="text-xs font-normal text-slate-500 italic block">{block.subtitle}</span>
+            )}
+          </h2>
+          <p className="text-sm leading-relaxed text-slate-700 text-justify whitespace-pre-line">
+            {block.content}
+          </p>
+        </section>
+      ))}
+
       {/* 7. SEÇÃO 5: PRÓXIMOS PASSOS PARA ATIVAÇÃO */}
-      <section className="space-y-4 pt-4 border-t border-slate-200">
-        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: brandColor }}>
-          {itemsWithTiers.length > 0 ? "5." : "4."} Próximos Passos para Ativação
-        </h2>
-        <div className="space-y-2.5">
-          {nextSteps.map((step, idx) => {
-            const cleanStep = step.replace(/^\d+\.\s*/, "");
-            return (
-              <div key={idx} className="flex items-start gap-3 text-sm text-slate-700">
-                <div className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: brandColor }}>
-                  {idx + 1}
+      {showNextSteps && (
+        <section className="space-y-4 pt-4 border-t border-slate-200">
+          <h2 className="text-lg font-bold flex flex-col gap-0.5" style={{ color: brandColor }}>
+            <span className="flex items-center gap-2">{getSectionNumber()} {nextStepsTitle}</span>
+            {nextStepsSubtitle && (
+              <span className="text-xs font-normal text-slate-500 italic block">{nextStepsSubtitle}</span>
+            )}
+          </h2>
+          <div className="space-y-2.5">
+            {nextSteps.map((step, idx) => {
+              const cleanStep = step.replace(/^\d+\.\s*/, "");
+              return (
+                <div key={idx} className="flex items-start gap-3 text-sm text-slate-700">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: brandColor }}>
+                    {idx + 1}
+                  </div>
+                  <p className="pt-0.5">{cleanStep}</p>
                 </div>
-                <p className="pt-0.5">{cleanStep}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 8. VALIDADE E ACEITE */}
       <section className="grid gap-6 border-t border-slate-200 pt-6 text-xs text-slate-600 sm:grid-cols-2">

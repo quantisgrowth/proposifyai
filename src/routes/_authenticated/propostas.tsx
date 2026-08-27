@@ -1363,6 +1363,7 @@ function ProposalsPage() {
                 <ProposalDocument
                   data={{
                     code: viewingProposal.proposal_code,
+                    id: viewingProposal.id,
                     clientName: viewingProposal.clients?.name ?? "—",
                     clientDocument: viewingProposal.clients?.document ?? "—",
                     contactName: viewingProposal.clients?.contact_name ?? "—",
@@ -1371,6 +1372,7 @@ function ProposalsPage() {
                     campaignName: viewingProposal.campaign_name || "Condições Exclusivas",
                     solutionName: viewingProposal.solution_name || "",
                     objectiveText: viewingProposal.objective_text || undefined,
+                    scopeText: viewingProposal.scope_text || undefined,
                     fidelityPolicy: viewingProposal.fidelity_policy || undefined,
                     nextStepsText: viewingProposal.next_steps_text || undefined,
                     items: (viewingProposal.proposal_items ?? []).map((i) => ({
@@ -1390,6 +1392,18 @@ function ProposalsPage() {
                     paymentTerms: viewingProposal.payment_terms || "",
                     notes: viewingProposal.notes || "",
                     company: viewingProposal.companies,
+                    show_objective: (viewingProposal as any).show_objective,
+                    show_scope: (viewingProposal as any).show_scope,
+                    show_fidelity: (viewingProposal as any).show_fidelity,
+                    show_next_steps: (viewingProposal as any).show_next_steps,
+                    objective_title: (viewingProposal as any).objective_title,
+                    objective_subtitle: (viewingProposal as any).objective_subtitle,
+                    scope_title: (viewingProposal as any).scope_title,
+                    scope_subtitle: (viewingProposal as any).scope_subtitle,
+                    fidelity_title: (viewingProposal as any).fidelity_title,
+                    fidelity_subtitle: (viewingProposal as any).fidelity_subtitle,
+                    next_steps_title: (viewingProposal as any).next_steps_title,
+                    next_steps_subtitle: (viewingProposal as any).next_steps_subtitle,
                   }}
                 />
               </div>

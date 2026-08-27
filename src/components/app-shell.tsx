@@ -119,8 +119,34 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     window.location.href = "/auth";
   };
 
-  const companyDisplayName = company?.name || "Proposify AI";
-  const companyLogo = company?.logo_url;
+  // Load platform settings from localStorage for platform admins
+  const [platformName, setPlatformName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("platform-name") || "Proposify AI";
+    }
+    return "Proposify AI";
+  });
+  const [platformLogo, setPlatformLogo] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("platform-logo-url") || "";
+    }
+    return "";
+  });
+
+  // Listen to storage changes to keep it in sync
+  useEffect(() => {
+    const handleStorage = () => {
+      setPlatformName(localStorage.getItem("platform-name") || "Proposify AI");
+      setPlatformLogo(localStorage.getItem("platform-logo-url") || "");
+    };
+    window.addEventListener("storage", handleStorage);
+    // Also poll/sync locally on pathname change
+    handleStorage();
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [pathname]);
+
+  const companyDisplayName = isAdmin ? platformName : company?.name || "Proposify AI";
+  const companyLogo = isAdmin ? platformLogo : company?.logo_url;
 
   const SidebarContent = () => (
     <div className={`flex h-full flex-col justify-between ${sidebarCollapsed ? "p-3" : "p-4 sm:p-5"}`}>

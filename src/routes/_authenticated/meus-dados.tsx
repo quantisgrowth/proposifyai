@@ -74,6 +74,52 @@ function MeusDadosPage() {
   const [savingInfo, setSavingInfo] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
+  // Platform settings states for Admin
+  const [platformName, setPlatformName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("platform-name") || "Proposify AI";
+    }
+    return "Proposify AI";
+  });
+  const [platformLogo, setPlatformLogo] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("platform-logo-url") || "";
+    }
+    return "";
+  });
+  const [savingPlatform, setSavingPlatform] = useState(false);
+
+  const handlePlatformLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPlatformLogo(reader.result as string);
+        toast.success("Logo da plataforma carregada!");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSavePlatformSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!platformName.trim()) {
+      toast.error("Nome da plataforma é obrigatório.");
+      return;
+    }
+    setSavingPlatform(true);
+    try {
+      localStorage.setItem("platform-name", platformName.trim());
+      localStorage.setItem("platform-logo-url", platformLogo);
+      window.dispatchEvent(new Event("storage"));
+      toast.success("Configurações da plataforma atualizadas com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar configurações da plataforma.");
+    } finally {
+      setSavingPlatform(false);
+    }
+  };
+
   // Initialize fields
   useEffect(() => {
     if (prof) {
@@ -172,6 +218,17 @@ function MeusDadosPage() {
         .eq("id", user!.id);
 
       if (error) throw error;
+
+      // Update auth user metadata so that on-login triggers don't overwrite it with old values
+      await supabase.auth.updateUser({
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          cpf: cleanCpf || null,
+          phone: phone.replace(/\D/g, "") || null,
+        }
+      });
       
       toast.success("Dados cadastrais atualizados com sucesso!");
       await refreshProfile();
@@ -329,6 +386,65 @@ function MeusDadosPage() {
               </CardFooter>
             </form>
           </Card>
+
+          {/* Platform configurations for Platform Admin */}
+          {prof?.role === "admin" && (
+            <Card className="border-border shadow-sm bg-card/60 backdrop-blur">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Building2 className="size-4 text-primary" />
+                  Personalização da Plataforma
+                </CardTitle>
+                <CardDescription>
+                  Personalize a identidade da plataforma (logo e nome exibidos na barra lateral de administração).
+                </CardDescription>
+              </CardHeader>
+              <form onSubmit={handleSavePlatformSettings}>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="platform-name" className="text-xs font-semibold">Nome da Plataforma</Label>
+                      <Input
+                        id="platform-name"
+                        placeholder="Ex: Proposify AI"
+                        value={platformName}
+                        onChange={(e) => setPlatformName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs font-semibold">Logo da Plataforma</Label>
+                      <div className="flex items-center gap-3">
+                        {platformLogo ? (
+                          <div className="size-10 rounded border border-border bg-white flex items-center justify-center p-1 overflow-hidden shrink-0">
+                            <img src={platformLogo} alt="Preview" className="max-h-full max-w-full object-contain" />
+                          </div>
+                        ) : (
+                          <div className="size-10 rounded border border-dashed border-border bg-muted flex items-center justify-center text-[10px] text-muted-foreground shrink-0">
+                            Sem Logo
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePlatformLogoUpload}
+                            className="h-8 text-xs cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="border-t border-border/60 pt-4 flex justify-end">
+                  <Button type="submit" disabled={savingPlatform} className="font-semibold px-6">
+                    {savingPlatform ? "Salvando..." : "Salvar Configurações da Plataforma"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          )}
 
           {/* Security / Password Reset Card */}
           <Card className="border-border shadow-sm bg-card/60 backdrop-blur">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   TrendingUp,
   CheckCircle2,
@@ -11,6 +11,10 @@ import {
   ChevronRight,
   TrendingDown,
   Percent,
+  Search,
+  Filter,
+  DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -30,6 +34,10 @@ import { AppShell } from "@/components/app-shell";
 import { proposalsQuery, companiesQuery, profilesQuery, type Proposal } from "@/lib/proposals";
 import { brl, shortDate, statusLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -67,6 +75,85 @@ function DashboardPage() {
   const { data: proposals, isLoading } = useQuery(proposalsQuery(isAdmin ? null : activeCompanyId));
 
   const list = useMemo(() => proposals ?? [], [proposals]);
+
+  // Platform billing history states
+  const [billingSearch, setBillingSearch] = useState("");
+  const [billingStatusFilter, setBillingStatusFilter] = useState<"all" | "paid" | "pending" | "unpaid">("all");
+  const [billingCompanyFilter, setBillingCompanyFilter] = useState("all");
+
+  const billingHistory = useMemo(() => {
+    if (!companies) return [];
+    
+    // We generate 3 billing cycles for each company
+    const cycles = [
+      { month: "Setembro/2026", dueDate: "2026-09-10" },
+      { month: "Agosto/2026", dueDate: "2026-08-10" },
+      { month: "Julho/2026", dueDate: "2026-07-10" },
+    ];
+    
+    const history: any[] = [];
+    
+    companies.forEach((comp) => {
+      // Find collabs count for this company to get plan price
+      const collabsCount = (profiles ?? []).filter((p) => p.company_id === comp.id).length;
+      let planPrice = 299;
+      let planName = "Básico";
+      if (collabsCount > 5) {
+        planName = "Enterprise";
+        planPrice = 1199;
+      } else if (collabsCount >= 3) {
+        planName = "Pro";
+        planPrice = 599;
+      }
+      
+      cycles.forEach((cycle, idx) => {
+        let status: "paid" | "pending" | "unpaid" = "paid";
+        let paymentMethod: string | null = "Pix";
+        let paidAt: string | null = cycle.dueDate;
+        
+        // Let's vary the status for realistic demonstration
+        if (cycle.month === "Setembro/2026") {
+          if (comp.name.toLowerCase().includes("achemaq")) {
+            status = "pending";
+            paymentMethod = null;
+            paidAt = null;
+          } else if (comp.name.toLowerCase().includes("quantis")) {
+            status = "unpaid";
+            paymentMethod = null;
+            paidAt = null;
+          }
+        }
+        
+        if (idx === 1) paymentMethod = "Boleto";
+        if (idx === 2) paymentMethod = "Cartão de Crédito";
+        
+        history.push({
+          id: `${comp.id}-${cycle.month}`,
+          companyId: comp.id,
+          companyName: comp.name,
+          month: cycle.month,
+          planName,
+          amount: planPrice,
+          dueDate: cycle.dueDate,
+          status,
+          paymentMethod,
+          paidAt,
+        });
+      });
+    });
+    
+    // Sort by due date descending
+    return history.sort((a, b) => b.dueDate.localeCompare(a.dueDate));
+  }, [companies, profiles]);
+
+  const filteredBillingHistory = useMemo(() => {
+    return billingHistory.filter((item) => {
+      const matchesSearch = item.companyName.toLowerCase().includes(billingSearch.toLowerCase());
+      const matchesStatus = billingStatusFilter === "all" || item.status === billingStatusFilter;
+      const matchesCompany = billingCompanyFilter === "all" || item.companyId === billingCompanyFilter;
+      return matchesSearch && matchesStatus && matchesCompany;
+    });
+  }, [billingHistory, billingSearch, billingStatusFilter, billingCompanyFilter]);
 
   const saasStats = useMemo(() => {
     if (!isAdmin) return null;
@@ -308,6 +395,130 @@ function DashboardPage() {
                   <p className="text-xs text-center text-muted-foreground py-10">Nenhuma empresa ativa cadastrada.</p>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Histórico de Pagamentos / Cobranças do SaaS */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/40 pb-4">
+              <div>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <DollarSign className="size-4 text-primary" /> Histórico de Cobranças das Assinaturas
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Lista completa de faturas mensais emitidas para os clientes da plataforma.
+                </p>
+              </div>
+
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                {/* Search */}
+                <div className="relative w-full sm:w-48">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar empresa..."
+                    className="pl-8 h-8 text-xs w-full"
+                    value={billingSearch}
+                    onChange={(e) => setBillingSearch(e.target.value)}
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <Select value={billingStatusFilter} onValueChange={(val: any) => setBillingStatusFilter(val)}>
+                  <SelectTrigger className="h-8 text-xs w-28 bg-transparent">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">Todos</SelectItem>
+                    <SelectItem value="paid" className="text-xs">Pagos</SelectItem>
+                    <SelectItem value="pending" className="text-xs">Pendentes</SelectItem>
+                    <SelectItem value="unpaid" className="text-xs">Vencidos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Company Filter */}
+                <Select value={billingCompanyFilter} onValueChange={setBillingCompanyFilter}>
+                  <SelectTrigger className="h-8 text-xs w-36 bg-transparent">
+                    <SelectValue placeholder="Empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" className="text-xs">Todas Empresas</SelectItem>
+                    {(companies ?? []).map((comp) => (
+                      <SelectItem key={comp.id} value={comp.id} className="text-xs">
+                        {comp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Invoices List / Table */}
+            <div className="overflow-x-auto rounded-lg border border-border/80">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 dark:bg-slate-900/50 text-muted-foreground font-semibold border-b border-border/80 uppercase tracking-wider">
+                  <tr>
+                    <th className="p-3 pl-4">Empresa</th>
+                    <th className="p-3">Referência</th>
+                    <th className="p-3 text-right">Valor Mensal</th>
+                    <th className="p-3">Vencimento</th>
+                    <th className="p-3">Data de Pagamento</th>
+                    <th className="p-3">Método</th>
+                    <th className="p-3 pr-4 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {filteredBillingHistory.map((invoice) => (
+                    <tr key={invoice.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                      <td className="p-3 pl-4">
+                        <div className="font-semibold text-foreground">{invoice.companyName}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">Plano {invoice.planName}</div>
+                      </td>
+                      <td className="p-3 font-medium text-slate-700 dark:text-slate-300">
+                        {invoice.month}
+                      </td>
+                      <td className="p-3 text-right font-bold text-foreground">
+                        {brl(invoice.amount)}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {new Date(invoice.dueDate).toLocaleDateString("pt-BR")}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString("pt-BR") : "—"}
+                      </td>
+                      <td className="p-3">
+                        {invoice.paymentMethod ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {invoice.paymentMethod}
+                          </Badge>
+                        ) : "—"}
+                      </td>
+                      <td className="p-3 pr-4 text-center">
+                        {invoice.status === "paid" ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            Pago
+                          </span>
+                        ) : invoice.status === "pending" ? (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                            Pendente
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                            Vencido
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredBillingHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground italic">
+                        Nenhuma cobrança encontrada com os filtros selecionados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

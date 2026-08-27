@@ -21,6 +21,7 @@ import {
   Plus,
   Mail,
   KeyRound,
+  Cpu,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";

@@ -104,7 +104,7 @@ function CollaboratorsTab() {
 
   const openCreateModal = () => {
     setEditingProfile(null);
-    const userCompanyId = loggedProfile?.company_id || activeCompanyId;
+    const userCompanyId = activeCompanyId || loggedProfile?.company_id;
     setForm({
       ...emptyCollaboratorForm,
       company_ids: isGestor && userCompanyId ? [userCompanyId] : companies?.[0]?.id ? [companies[0].id] : [],
@@ -246,7 +246,7 @@ function CollaboratorsTab() {
   const filteredProfiles = (profiles ?? [])
     .filter((p) => {
       if (isGestor) {
-        const userCompanyId = loggedProfile?.company_id || activeCompanyId;
+        const userCompanyId = activeCompanyId || loggedProfile?.company_id;
         return p.company_id === userCompanyId || p.company_ids?.includes(userCompanyId || "");
       }
       return true;

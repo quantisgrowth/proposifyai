@@ -159,6 +159,20 @@ function AuthPage() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao conectar com a conta do Google.");
+    }
+  };
+
   const handleOpenFooterModal = (type: "roadmap" | "docs" | "support" | "terms" | "privacy") => {
     let title = "";
     const contentKey = `footer-content-${type}`;
@@ -283,6 +297,24 @@ function AuthPage() {
               className="mt-2 h-12 w-full rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg shadow-red-600/25 transition-all duration-300 hover:scale-[1.01] uppercase tracking-wider"
             >
               {busy ? "ENTRANDO..." : "LOGIN"}
+            </Button>
+
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-border/40"></div>
+              <span className="mx-3 shrink-0 text-xs font-semibold text-muted-foreground uppercase tracking-wider">ou</span>
+              <div className="flex-grow border-t border-border/40"></div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleSignIn}
+              className="w-full h-12 rounded-lg border-border hover:bg-secondary/20 dark:hover:bg-slate-900/50 flex items-center justify-center gap-3 text-sm font-semibold transition-all hover:scale-[1.01]"
+            >
+              <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 5.92 1 1 5.92 1 12s4.92 11 11.24 11c6.6 0 11-4.65 11-11.19 0-.756-.08-1.333-.178-1.813H12.24z"/>
+              </svg>
+              Entrar com Google
             </Button>
 
             <div className="pt-2 flex flex-col items-center gap-2">

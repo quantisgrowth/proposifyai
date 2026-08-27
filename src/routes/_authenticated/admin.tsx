@@ -19,6 +19,8 @@ import {
   SlidersHorizontal,
   Layers,
   Plus,
+  Mail,
+  KeyRound,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -1961,10 +1963,10 @@ function ActiveCompanyTab() {
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <SlidersHorizontal className="size-4 text-primary" />
-              Preferências e Envio (SMTP)
+              Preferências de Proposta
             </CardTitle>
             <CardDescription>
-              Configure o servidor SMTP de envio de e-mails para propostas assinadas e rodapés oficiais.
+              Defina a validade padrão, forma de pagamento e textos adicionais de rodapé.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1996,70 +1998,10 @@ function ActiveCompanyTab() {
                 placeholder="Ex: © 2026 Minha Empresa - CNPJ 00.000.000/0001-00"
               />
             </div>
-
-            <div className="pt-2 border-t border-border/40 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="grid gap-1.5 col-span-2">
-                <Label className="text-xs font-semibold">Servidor SMTP Host</Label>
-                <Input
-                  value={form.smtp_host}
-                  onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
-                  placeholder="smtp.zoho.com"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Porta SMTP</Label>
-                <Input
-                  type="number"
-                  value={form.smtp_port}
-                  onChange={(e) => setForm({ ...form, smtp_port: parseInt(e.target.value) || 587 })}
-                  placeholder="587"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Usuário SMTP</Label>
-                <Input
-                  value={form.smtp_user}
-                  onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
-                  placeholder="usuario@empresa.com"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Senha SMTP</Label>
-                <Input
-                  type="password"
-                  value={form.smtp_pass}
-                  onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
-                  placeholder="••••••••••••"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">E-mail Remetente</Label>
-                <Input
-                  type="email"
-                  value={form.smtp_from}
-                  onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
-                  placeholder="envios@empresa.com"
-                />
-              </div>
-              <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold">Nome do Remetente</Label>
-                <Input
-                  value={form.smtp_from_name}
-                  onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
-                  placeholder="Ex: Comercial LB Tyres"
-                />
-              </div>
-            </div>
           </CardContent>
           <CardFooter className="border-t border-border/40 pt-4 flex justify-end">
             <Button type="submit" disabled={busy} className="font-semibold px-6">
-              {busy ? "Salvando..." : "Salvar Configurações"}
+              Salvar Configurações
             </Button>
           </CardFooter>
         </Card>
@@ -2130,6 +2072,311 @@ function ActiveCompanyTab() {
         progress={saveProgress}
         statusText={saveStatus}
         title="Salvando Configurações da Empresa"
+      />
+    </div>
+  );
+}
+
+/* =========================================================================
+   2.5. ABA INTEGRAÇÕES (SMTP, Webhooks e Chave de API)
+   ========================================================================= */
+
+function IntegrationsTab() {
+  const qc = useQueryClient();
+  const { company, refreshProfile } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  // Simulated progress overlay states
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
+  const [saveStatus, setSaveStatus] = useState("");
+
+  const [form, setForm] = useState({
+    smtp_host: "",
+    smtp_port: 587,
+    smtp_user: "",
+    smtp_pass: "",
+    smtp_from: "",
+    smtp_from_name: "",
+    api_key: "",
+    webhook_url: "",
+    webhook_secret: "",
+  });
+
+  useEffect(() => {
+    if (company) {
+      setForm({
+        smtp_host: company.smtp_host || "",
+        smtp_port: company.smtp_port || 587,
+        smtp_user: company.smtp_user || "",
+        smtp_pass: company.smtp_pass || "",
+        smtp_from: company.smtp_from || "",
+        smtp_from_name: company.smtp_from_name || "",
+        api_key: company.api_key || "",
+        webhook_url: company.webhook_url || "",
+        webhook_secret: company.webhook_secret || "",
+      });
+    }
+  }, [company]);
+
+  const handleGenerateApiKey = () => {
+    const randHex = "prp_live_" + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    setForm((prev) => ({ ...prev, api_key: randHex }));
+    toast.success("Token de API gerado! Salve as alterações para ativar.");
+  };
+
+  const handleGenerateWebhookSecret = () => {
+    const randHex = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    setForm((prev) => ({ ...prev, webhook_secret: randHex }));
+    toast.success("Segredo do Webhook gerado! Salve as alterações para ativar.");
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company) return;
+
+    setProgressOpen(true);
+    setSaveProgress(0);
+    setSaveStatus("Salvando configurações...");
+
+    const interval = setInterval(() => {
+      setSaveProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        const next = prev + 10;
+        if (next < 40) {
+          setSaveStatus("Salvando configurações de SMTP...");
+        } else if (next < 80) {
+          setSaveStatus("Atualizando tokens de API e Webhook...");
+        } else {
+          setSaveStatus("Finalizando...");
+        }
+        return next;
+      });
+    }, 100);
+
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          smtp_host: form.smtp_host.trim() || null,
+          smtp_port: form.smtp_port ? Number(form.smtp_port) : null,
+          smtp_user: form.smtp_user.trim() || null,
+          smtp_pass: form.smtp_pass || null,
+          smtp_from: form.smtp_from.trim() || null,
+          smtp_from_name: form.smtp_from_name.trim() || null,
+          api_key: form.api_key.trim() || null,
+          webhook_url: form.webhook_url.trim() || null,
+          webhook_secret: form.webhook_secret.trim() || null,
+        })
+        .eq("id", company.id);
+
+      if (error) throw error;
+
+      setSaveProgress(100);
+      setSaveStatus("Concluído!");
+      toast.success("Integrações salvas com sucesso!");
+      qc.invalidateQueries({ queryKey: ["companies"] });
+      await refreshProfile();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao salvar integrações.");
+    } finally {
+      clearInterval(interval);
+      setBusy(false);
+      setTimeout(() => setProgressOpen(false), 500);
+    }
+  };
+
+  const handleCopy = (text: string, label: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copiado para a área de transferência!`);
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl pb-10">
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* 1. SMTP Settings */}
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Mail className="size-4 text-primary" />
+              Configuração de Envio de E-mail (SMTP)
+            </CardTitle>
+            <CardDescription>
+              Configure o servidor de envio SMTP para disparar os e-mails oficiais de propostas assinadas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid gap-1.5 col-span-2">
+                <Label className="text-xs font-semibold">Servidor SMTP Host</Label>
+                <Input
+                  value={form.smtp_host}
+                  onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
+                  placeholder="smtp.zoho.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Porta SMTP</Label>
+                <Input
+                  type="number"
+                  value={form.smtp_port}
+                  onChange={(e) => setForm({ ...form, smtp_port: parseInt(e.target.value) || 587 })}
+                  placeholder="587"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Usuário SMTP</Label>
+                <Input
+                  value={form.smtp_user}
+                  onChange={(e) => setForm({ ...form, smtp_user: e.target.value })}
+                  placeholder="usuario@empresa.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Senha SMTP</Label>
+                <Input
+                  type="password"
+                  value={form.smtp_pass}
+                  onChange={(e) => setForm({ ...form, smtp_pass: e.target.value })}
+                  placeholder="••••••••••••"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">E-mail Remetente</Label>
+                <Input
+                  type="email"
+                  value={form.smtp_from}
+                  onChange={(e) => setForm({ ...form, smtp_from: e.target.value })}
+                  placeholder="envios@empresa.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Nome do Remetente</Label>
+                <Input
+                  value={form.smtp_from_name}
+                  onChange={(e) => setForm({ ...form, smtp_from_name: e.target.value })}
+                  placeholder="Ex: Comercial LB Tyres"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 2. Webhooks Settings */}
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Cpu className="size-4 text-primary" />
+              Saída de Dados (Webhooks)
+            </CardTitle>
+            <CardDescription>
+              Configure um webhook para receber atualizações da plataforma (ex: `proposal.created`, `proposal.signed`, `proposal.viewed`).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">URL do Webhook</Label>
+              <Input
+                value={form.webhook_url}
+                onChange={(e) => setForm({ ...form, webhook_url: e.target.value })}
+                placeholder="Ex: https://api.seu-crm.com/webhooks/proposify"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Segredo do Webhook (Webhook Secret)</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.webhook_secret}
+                  onChange={(e) => setForm({ ...form, webhook_secret: e.target.value })}
+                  placeholder="Clique para gerar um segredo..."
+                  className="font-mono text-xs"
+                />
+                <Button type="button" variant="outline" onClick={handleGenerateWebhookSecret} className="text-xs">
+                  Gerar Segredo
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 3. API Settings */}
+        <Card className="border-border bg-card/60 backdrop-blur shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <KeyRound className="size-4 text-primary" />
+              Token de Acesso à API (API Key)
+            </CardTitle>
+            <CardDescription>
+              Utilize o Token abaixo para autenticar chamadas externas e permitir que assistentes (como o Claude) leiam os dados da plataforma.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-1.5">
+              <Label className="text-xs font-semibold">Token de Acesso</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.api_key}
+                  onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+                  placeholder="Gere um Token para começar..."
+                  className="font-mono text-xs"
+                  readOnly
+                />
+                <Button type="button" variant="outline" onClick={() => handleCopy(form.api_key, "Token de API")} className="text-xs">
+                  Copiar
+                </Button>
+                <Button type="button" variant="outline" onClick={handleGenerateApiKey} className="text-xs bg-primary/5 hover:bg-primary/10">
+                  {form.api_key ? "Regerar Token" : "Gerar Token"}
+                </Button>
+              </div>
+            </div>
+
+            {/* API Documentation Guide */}
+            <div className="p-4 bg-muted/30 border border-border rounded-xl space-y-2 text-xs">
+              <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                <Check className="size-4 text-emerald-500" /> Guia de Leitura via Claude / ChatGPT
+              </h4>
+              <p className="text-muted-foreground leading-normal">
+                Para que seu assistente de IA leia suas propostas, clientes e produtos, ele deve fazer uma chamada HTTP do tipo <strong>GET</strong>:
+              </p>
+              <div className="p-2.5 bg-slate-950 text-slate-100 rounded-lg font-mono text-[10px] space-y-1 select-all overflow-x-auto">
+                <p>GET {typeof window !== "undefined" ? window.location.origin : ""}/api/v1/proposals</p>
+                <p>Authorization: Bearer &lt;seu_token_de_acesso&gt;</p>
+              </div>
+              <p className="text-muted-foreground leading-normal mt-2">
+                O retorno será um JSON estruturado com a lista de todas as propostas da sua empresa, incluindo as informações detalhadas do cliente e de cada item orçado.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="border-t border-border/40 pt-4 flex justify-end">
+            <Button type="submit" disabled={busy} className="font-semibold px-6 bg-red-600 hover:bg-red-700 text-white">
+              Salvar Integrações
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+
+      {/* Progress overlay */}
+      <UploadProgressOverlay
+        open={progressOpen}
+        progress={saveProgress}
+        statusText={saveStatus}
+        title="Salvando Integrações"
       />
     </div>
   );
@@ -2610,12 +2857,15 @@ function AdminPage() {
         </div>
 
         <Tabs defaultValue="colaboradores" className="mt-6">
-          <TabsList className="grid grid-cols-2 max-w-xs">
+          <TabsList className="grid grid-cols-3 max-w-md">
             <TabsTrigger value="colaboradores" className="gap-2 text-xs">
               <Users className="size-4" /> Minha Equipe
             </TabsTrigger>
             <TabsTrigger value="empresa" className="gap-2 text-xs">
               <Building2 className="size-4" /> Dados da Empresa
+            </TabsTrigger>
+            <TabsTrigger value="integracoes" className="gap-2 text-xs">
+              <Cpu className="size-4" /> Integrações
             </TabsTrigger>
           </TabsList>
 
@@ -2624,6 +2874,9 @@ function AdminPage() {
           </TabsContent>
           <TabsContent value="empresa" className="mt-6">
             <ActiveCompanyTab />
+          </TabsContent>
+          <TabsContent value="integracoes" className="mt-6">
+            <IntegrationsTab />
           </TabsContent>
         </Tabs>
       </AppShell>

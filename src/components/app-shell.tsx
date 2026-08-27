@@ -95,10 +95,11 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
     ];
     
     if (isGestor) {
-      items.push(
-        { to: "/automacoes", label: "Automações", icon: Cpu },
-        { to: "/admin", label: "Minha Equipe", icon: SlidersHorizontal }
-      );
+      items.push({ to: "/automacoes", label: "Automações", icon: Cpu });
+    }
+    
+    if (isGestor) {
+      items.push({ to: "/admin", label: "Configurações", icon: SlidersHorizontal });
     }
     
     items.push({ to: "/meus-dados", label: "Meus Dados", icon: User });

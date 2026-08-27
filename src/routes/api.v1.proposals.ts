@@ -4,6 +4,87 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 export const Route = createFileRoute("/api/v1/proposals")({
   server: {
     handlers: {
+      GET: async ({ request }) => {
+        try {
+          // 1. Authenticate with Bearer API Key
+          const authHeader = request.headers.get("Authorization");
+          if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return new Response(
+              JSON.stringify({ error: "Missing or invalid Authorization header" }),
+              { status: 401, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          const token = authHeader.replace("Bearer ", "").trim();
+          
+          // 2. Fetch corresponding company
+          const { data: company, error: compErr } = await supabaseAdmin
+            .from("companies")
+            .select("*")
+            .eq("api_key", token)
+            .maybeSingle();
+
+          if (compErr || !company) {
+            return new Response(
+              JSON.stringify({ error: "Unauthorized: Invalid API Key" }),
+              { status: 401, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          // 3. Fetch proposals with client info and items
+          const { data: proposals, error: propErr } = await supabaseAdmin
+            .from("proposals")
+            .select(`
+              id,
+              proposal_code,
+              campaign_name,
+              solution_name,
+              total_amount,
+              discount_amount,
+              net_amount,
+              validity_date,
+              status,
+              created_at,
+              payment_terms,
+              notes,
+              clients (
+                id,
+                name,
+                document,
+                email,
+                phone,
+                contact_name
+              ),
+              proposal_items (
+                id,
+                title,
+                description,
+                quantity,
+                unit_price,
+                total_price
+              )
+            `)
+            .eq("company_id", company.id)
+            .order("created_at", { ascending: false });
+
+          if (propErr) {
+            return new Response(
+              JSON.stringify({ error: "Failed to fetch proposals: " + propErr.message }),
+              { status: 500, headers: { "Content-Type": "application/json" } }
+            );
+          }
+
+          return new Response(JSON.stringify({ success: true, proposals }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (err: any) {
+          return new Response(
+            JSON.stringify({ error: "Internal server error: " + err.message }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      },
       POST: async ({ request }) => {
         try {
           // 1. Authenticate with Bearer API Key

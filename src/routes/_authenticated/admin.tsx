@@ -17,6 +17,8 @@ import {
   Check,
   ChevronsUpDown,
   SlidersHorizontal,
+  Layers,
+  Plus,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";

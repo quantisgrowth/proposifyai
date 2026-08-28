@@ -18,6 +18,7 @@ import {
   Settings,
   SlidersHorizontal,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -968,9 +969,11 @@ function ProposalsPage() {
                         draggable="true"
                         onDragStart={(e) => handleDragStart(e, p.id)}
                         onDragEnd={handleDragEnd}
-                        className={`group relative rounded-xl border border-border/80 bg-card p-4 shadow-sm hover:border-foreground/20 hover:shadow transition-all duration-200 cursor-grab active:cursor-grabbing ${
-                          isMoving ? "opacity-45 pointer-events-none" : ""
-                        }`}
+                        className={`group relative rounded-xl border bg-card p-4 shadow-sm hover:shadow transition-all duration-200 cursor-grab active:cursor-grabbing ${
+                          p.status === "revision" 
+                            ? "border-orange-500/50 bg-orange-500/[0.02] hover:border-orange-500/80 shadow-sm shadow-orange-500/5" 
+                            : "border-border/80 hover:border-foreground/20"
+                        } ${isMoving ? "opacity-45 pointer-events-none" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex flex-col gap-0.5 min-w-0">
@@ -1059,6 +1062,17 @@ function ProposalsPage() {
                         <h4 className="mt-2 font-semibold text-xs text-foreground line-clamp-2">
                           {p.clients?.name ?? "—"}
                         </h4>
+
+                        {p.status === "revision" && (
+                          <div className="mt-2 text-[10px] text-orange-600 bg-orange-500/5 px-2.5 py-1.5 rounded-lg border border-orange-500/10 font-medium text-left">
+                            <span className="font-bold flex items-center gap-1"><AlertTriangle className="size-3 text-orange-500 shrink-0 animate-pulse" /> Ajuste Solicitado</span>
+                            {p.revision_notes && (
+                              <span className="block text-[9px] font-normal text-muted-foreground mt-0.5 leading-normal line-clamp-2 italic">
+                                &ldquo;{p.revision_notes}&rdquo;
+                              </span>
+                            )}
+                          </div>
+                        )}
 
                         {p.status === "rejected" && p.loss_reason && (
                           <div className="mt-2 text-[10px] text-destructive bg-destructive/5 px-2.5 py-1.5 rounded-lg border border-destructive/10 font-medium">
@@ -1359,8 +1373,20 @@ function ProposalsPage() {
             {loadingViewingProposal ? (
               <p className="p-12 text-center text-sm text-muted-foreground font-semibold">Carregando detalhes da proposta…</p>
             ) : viewingProposal ? (
-              <div className="max-w-3xl mx-auto bg-background rounded-xl shadow-sm border border-border p-4">
-                <ProposalDocument
+              <div className="space-y-4 max-w-3xl mx-auto">
+                {viewingProposal.status === "revision" && (
+                  <div className="p-4 border border-orange-500/30 bg-orange-500/5 rounded-xl text-xs space-y-1.5 shadow-sm text-left">
+                    <h4 className="font-bold text-orange-600 dark:text-orange-400 flex items-center gap-1.5 uppercase tracking-wide">
+                      <AlertTriangle className="size-4 shrink-0 text-orange-500 animate-pulse" /> Ajustes Solicitados pelo Cliente
+                    </h4>
+                    <p className="text-muted-foreground leading-normal italic bg-card/45 p-3 rounded-lg border border-border/25">
+                      &ldquo;{viewingProposal.revision_notes || "Nenhuma anotação fornecida pelo cliente."}&rdquo;
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-background rounded-xl shadow-sm border border-border p-4">
+                  <ProposalDocument
                   data={{
                     code: viewingProposal.proposal_code,
                     id: viewingProposal.id,
@@ -1406,6 +1432,7 @@ function ProposalsPage() {
                     next_steps_subtitle: (viewingProposal as any).next_steps_subtitle,
                   }}
                 />
+                </div>
               </div>
             ) : (
               <p className="p-12 text-center text-sm text-muted-foreground font-semibold">Erro ao carregar proposta.</p>
@@ -1430,6 +1457,21 @@ function ProposalsPage() {
               >
                 <Copy className="size-4" /> Copiar Link
               </Button>
+
+              {viewingProposal && (viewingProposal.status === "draft" || viewingProposal.status === "revision") && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (viewingProposal) {
+                      setViewingProposalCode(null);
+                      handleOpenShareModal(viewingProposal as any);
+                    }
+                  }}
+                  className="flex-1 sm:flex-none gap-1.5 bg-red-600 hover:bg-red-700 text-white font-bold cursor-pointer transition-colors shadow shadow-red-600/20"
+                >
+                  <Mail className="size-4" /> Enviar Proposta
+                </Button>
+              )}
             </div>
             <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
               <Button

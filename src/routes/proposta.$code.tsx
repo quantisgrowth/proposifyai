@@ -41,6 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
   accepted: "Aceita",
   rejected: "Recusada",
   expired: "Expirada",
+  revision: "Em Revisão",
 };
 
 type Search = { print?: boolean };
@@ -79,6 +80,10 @@ function ProposalView() {
   const [signerIp, setSignerIp] = useState("—");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+  const [revisionNotes, setRevisionNotes] = useState("");
+  const [isRevising, setIsRevising] = useState(false);
 
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -366,6 +371,37 @@ function ProposalView() {
     }
   };
 
+  const handleRevisionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revisionNotes.trim()) {
+      toast.error("Por favor, informe os detalhes que precisam ser revisados.");
+      return;
+    }
+
+    setIsRevising(true);
+    try {
+      const { error } = await supabase
+        .from("proposals")
+        .update({
+          status: "revision",
+          revision_notes: revisionNotes.trim(),
+        })
+        .eq("id", data.id);
+
+      if (error) throw error;
+
+      toast.success("Solicitação de revisão enviada! O vendedor foi notificado.");
+      setRevisionModalOpen(false);
+      setRevisionNotes("");
+      queryClient.invalidateQueries({ queryKey: ["proposal-view", code] });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erro ao solicitar revisão.");
+    } finally {
+      setIsRevising(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-16">
       <div className="no-print sticky top-0 z-20 border-b border-border bg-background/85 backdrop-blur">
@@ -544,11 +580,33 @@ function ProposalView() {
               </p>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap gap-3">
               <Button size="lg" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-2 shadow" onClick={() => setModalOpen(true)}>
                 <CheckSquare className="size-4" /> Aceitar Proposta Comercial
               </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="w-full sm:w-auto border-red-600/30 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 hover:border-red-600 font-semibold gap-2 shadow-sm cursor-pointer"
+                onClick={() => setRevisionModalOpen(true)}
+              >
+                <AlertTriangle className="size-4 text-red-600 shrink-0" /> Solicitar Ajustes / Revisão
+              </Button>
             </div>
+          </div>
+        ) : data.status === "revision" ? (
+          <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-sm text-left">
+            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 flex items-center gap-2">
+              <AlertTriangle className="size-5 text-orange-500 shrink-0" /> Proposta sob Revisão
+            </h3>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              Você solicitou ajustes nesta proposta comercial. O vendedor já foi notificado e revisará as suas observações em breve para enviar uma versão atualizada.
+            </p>
+            {data.revision_notes && (
+              <div className="mt-4 p-4 bg-card rounded-lg border border-border/40 text-xs italic text-muted-foreground">
+                &ldquo;{data.revision_notes}&rdquo;
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
@@ -658,6 +716,44 @@ function ProposalView() {
                 {isSubmitting ? "Processando..." : "Confirmar Assinatura & Aceite"}
               </Button>
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)} disabled={isSubmitting} className="text-sm">
+                Cancelar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Solicitação de Revisão */}
+      <Dialog open={revisionModalOpen} onOpenChange={setRevisionModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle className="size-5 text-red-600 shrink-0" /> Solicitar Ajustes / Revisão
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Informe detalhadamente os pontos da proposta que precisam ser alterados ou revisados pelo vendedor.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleRevisionSubmit} className="space-y-4 pt-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="revision-notes" className="text-xs font-semibold">Observações / Ajustes Solicitados</Label>
+              <Textarea
+                id="revision-notes"
+                value={revisionNotes}
+                onChange={(e) => setRevisionNotes(e.target.value)}
+                placeholder="Ex: Gostaria de alterar o prazo de entrega para 10 dias e ajustar o desconto do item 2..."
+                rows={5}
+                required
+                disabled={isRevising}
+                className="text-sm"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 pt-3 sm:flex-row-reverse">
+              <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white font-semibold gap-1.5 text-sm" disabled={isRevising}>
+                {isRevising ? "Enviando..." : "Solicitar Revisão"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setRevisionModalOpen(false)} disabled={isRevising} className="text-sm">
                 Cancelar
               </Button>
             </DialogFooter>

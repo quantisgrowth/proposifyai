@@ -528,6 +528,10 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
       toast.error("Informe a razão social ou nome");
       return;
     }
+    if (!newClient.email.trim()) {
+      toast.error("O e-mail é obrigatório para o envio de propostas");
+      return;
+    }
     const { data, error } = await supabase
       .from("clients")
       .insert({ ...newClient, company_id: activeCompanyId })
@@ -860,7 +864,9 @@ export function ProposalEditor({ proposalCode, onSaveSuccess, onCancel }: Propos
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label className="text-xs">E-mail</Label>
+                <Label className="text-xs">
+                  E-mail <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   type="email"
                   value={newClient.email}

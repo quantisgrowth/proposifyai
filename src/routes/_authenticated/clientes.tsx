@@ -384,6 +384,7 @@ function ClientsPage() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form.name.trim()) throw new Error("Informe a razão social ou nome");
+      if (!form.email.trim()) throw new Error("O e-mail é obrigatório para o envio de propostas.");
       
       const targetCompanyId = form.company_id || activeCompanyId || (companies?.[0]?.id ?? null);
       
@@ -926,7 +927,9 @@ function ClientsPage() {
             {/* Email & Phone side-by-side */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-xs font-semibold text-muted-foreground">E-mail Comercial</Label>
+                <Label className="text-xs font-semibold text-muted-foreground">
+                  E-mail Comercial <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   type="email"
                   value={form.email}

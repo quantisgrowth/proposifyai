@@ -381,22 +381,21 @@ function ProposalsPage() {
     const otherIndex = direction === "left" ? index - 1 : index + 1;
     if (otherIndex < 0 || otherIndex >= dbColumns.length) return;
 
-    const colA = dbColumns[index];
-    const colB = dbColumns[otherIndex];
-    if (!colA || !colB) return;
+    const reordered = [...dbColumns];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(otherIndex, 0, moved);
 
     try {
-      const { error: errA } = await supabase
-        .from("kanban_columns")
-        .update({ position: colB.position })
-        .eq("id", colA.id);
-      if (errA) throw errA;
+      const promises = reordered.map((col, idx) =>
+        supabase
+          .from("kanban_columns")
+          .update({ position: idx })
+          .eq("id", col.id)
+      );
 
-      const { error: errB } = await supabase
-        .from("kanban_columns")
-        .update({ position: colA.position })
-        .eq("id", colB.id);
-      if (errB) throw errB;
+      const results = await Promise.all(promises);
+      const firstError = results.find((r) => r.error)?.error;
+      if (firstError) throw firstError;
 
       qc.invalidateQueries({ queryKey: ["kanban_columns"] });
     } catch (err: any) {
@@ -523,7 +522,7 @@ function ProposalsPage() {
   };
 
   const ensureProposalSent = async (p: ProposalWithClient) => {
-    if (p.status === "draft") {
+    if (p.status === "draft" || p.status === "proposta-pronta") {
       try {
         const { error } = await supabase
           .from("proposals")

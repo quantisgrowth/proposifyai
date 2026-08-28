@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Rascunho",
+  "proposta-pronta": "Pronta para Envio",
   sent: "Enviada",
   accepted: "Aceita",
   rejected: "Recusada",
@@ -226,7 +227,7 @@ function ProposalView() {
   }
 
   const ensureProposalSent = async () => {
-    if (data && data.status === "draft") {
+    if (data && (data.status === "draft" || data.status === "proposta-pronta")) {
       try {
         const { error } = await supabase
           .from("proposals")
@@ -569,7 +570,7 @@ function ProposalView() {
               </div>
             </div>
           </div>
-        ) : data.status === "sent" ? (
+        ) : (data.status === "sent" || data.status === "proposta-pronta") ? (
           <div className="rounded-xl border border-border bg-card p-6 shadow-md space-y-4">
             <div className="space-y-1.5">
               <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -595,18 +596,37 @@ function ProposalView() {
             </div>
           </div>
         ) : data.status === "revision" ? (
-          <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-sm text-left">
-            <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 flex items-center gap-2">
-              <AlertTriangle className="size-5 text-orange-500 shrink-0" /> Proposta sob Revisão
-            </h3>
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-              Você solicitou ajustes nesta proposta comercial. O vendedor já foi notificado e revisará as suas observações em breve para enviar uma versão atualizada.
-            </p>
-            {data.revision_notes && (
-              <div className="mt-4 p-4 bg-card rounded-lg border border-border/40 text-xs italic text-muted-foreground">
-                &ldquo;{data.revision_notes}&rdquo;
+          <div className="space-y-4">
+            <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-sm text-left">
+              <h3 className="font-bold text-lg text-orange-600 dark:text-orange-400 flex items-center gap-2">
+                <AlertTriangle className="size-5 text-orange-500 shrink-0" /> Proposta sob Revisão
+              </h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                Você solicitou ajustes nesta proposta comercial. O vendedor já foi notificado e revisará as suas observações em breve para enviar uma versão atualizada.
+              </p>
+              {data.revision_notes && (
+                <div className="mt-4 p-4 bg-card rounded-lg border border-border/40 text-xs italic text-muted-foreground">
+                  &ldquo;{data.revision_notes}&rdquo;
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-6 shadow-md space-y-4">
+              <div className="space-y-1.5">
+                <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+                  <CheckSquare className="size-5 text-primary" /> Aceitar com as Condições Atuais
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Se você mudou de ideia ou deseja aceitar a proposta com as condições atuais (antes ou em paralelo aos ajustes), realize o aceite digital abaixo.
+                </p>
               </div>
-            )}
+
+              <div className="pt-2 flex flex-wrap gap-3">
+                <Button size="lg" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-2 shadow" onClick={() => setModalOpen(true)}>
+                  <CheckSquare className="size-4" /> Aceitar Proposta Comercial
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex items-center justify-between">
